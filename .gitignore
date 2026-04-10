@@ -13,16 +13,14 @@ venv/
 
 # APEX Cache & Data
 data/
-**/*.sqlite
-**/*.db
 **/*.log
 
-# Large Binary Assets (GitHub 100MB limit)
-**/*.glb
-**/*.gltf
-**/*.bin
-**/*.zip
-**/*.tar.gz
+# Large Binary Assets (LFS Managed)
+# These are kept in LFS; do not ignore globally.
+!**/*.glb
+!**/*.sqlite
+!**/*.db
+
 
 # Environment / Credentials (CRITICAL)
 .env
