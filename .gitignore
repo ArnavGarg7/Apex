@@ -1,0 +1,43 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+venv/
+.venv/
+
+# APEX Cache & Data
+data/
+**/*.sqlite
+**/*.db
+**/*.log
+
+# Large Binary Assets (GitHub 100MB limit)
+**/*.glb
+**/*.gltf
+**/*.bin
+**/*.zip
+**/*.tar.gz
+
+# Environment / Credentials (CRITICAL)
+.env
+*.json
+!package.json
+!tsconfig.json
+!backend/services/circuit_metadata.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+

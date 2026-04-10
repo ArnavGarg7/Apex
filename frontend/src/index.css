@@ -1,0 +1,472 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Titillium+Web:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700&display=swap');
+
+/* ── Design Tokens ─────────────────────────────────────────────── */
+:root {
+  /* Colors */
+  --apex-red:        #E10600;
+  --apex-red-dark:   #B00500;
+  --apex-red-glow:   rgba(225, 6, 0, 0.35);
+  --apex-bg:         #0D0D0D;
+  --apex-surface:    #111111;
+  --apex-card:       #1A1A1A;
+  --apex-card-hover: #222222;
+  --apex-border:     rgba(255,255,255,0.06);
+  --apex-border-hi:  rgba(255,255,255,0.12);
+  --apex-text:       #FFFFFF;
+  --apex-muted:      #808080;
+  --apex-muted-hi:   #AAAAAA;
+  --apex-purple:     #9B59B6;
+  --apex-green:      #1B9A1B;
+  --apex-amber:      #F59E0B;
+  --apex-blue:       #3671C6;
+
+  /* Team Colors */
+  --team-red-bull:      #3671C6;
+  --team-ferrari:       #E8002D;
+  --team-mercedes:      #27F4D2;
+  --team-mclaren:       #FF8000;
+  --team-aston:         #229971;
+  --team-alpine:        #FF87BC;
+  --team-williams:      #64C4FF;
+  --team-rb:            #6692FF;
+  --team-sauber:        #52E252;
+  --team-haas:          #B6BABD;
+
+  /* Compound Colors */
+  --compound-soft:   #E8002D;
+  --compound-medium: #FFF200;
+  --compound-hard:   #F0F0F0;
+  --compound-inter:  #39B54A;
+  --compound-wet:    #0067FF;
+
+  /* Spacing */
+  --gap-xs:  4px;
+  --gap-sm:  8px;
+  --gap-md:  16px;
+  --gap-lg:  24px;
+  --gap-xl:  32px;
+  --gap-2xl: 48px;
+
+  /* Radius */
+  --r-sm:  4px;
+  --r-md:  6px;
+  --r-lg:  8px;
+
+  /* Font stacks */
+  --font-display: 'Orbitron', 'Courier New', monospace;
+  --font-body:    'Titillium Web', 'Arial', sans-serif;
+
+  /* Skeuomorphic shadows */
+  --shadow-card:   
+    inset 0 1px 0 rgba(255,255,255,0.08), 
+    inset 0 -1px 0 rgba(0,0,0,0.5),
+    0 4px 16px rgba(0,0,0,0.7),
+    0 1px 2px rgba(0,0,0,0.9);
+    
+  --shadow-button: 
+    0 4px 0 #0A0A0A, 
+    0 5px 6px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
+    
+  --shadow-glow:   0 0 24px rgba(225,6,0,0.4);
+  --shadow-lift:   0 12px 48px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
+
+  /* Deep Carbon Fibre texture */
+  --carbon-pattern:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 1px,
+      rgba(255,255,255,0.02) 1px,
+      rgba(255,255,255,0.02) 2px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 1px,
+      rgba(255,255,255,0.02) 1px,
+      rgba(255,255,255,0.02) 2px
+    ),
+    linear-gradient(180deg, #161616 0%, #0d0d0d 100%);
+
+  /* Transitions */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast:  150ms;
+  --t-base:  250ms;
+  --t-slow:  400ms;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--apex-bg);
+  color: var(--apex-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+.font-display  { font-family: var(--font-display); }
+.font-body     { font-family: var(--font-body); }
+.text-mono     { font-family: 'Orbitron', monospace; letter-spacing: 0.05em; }
+
+h1, h2, h3    { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.05em; }
+h4, h5, h6    { font-family: var(--font-body);    font-weight: 700; }
+
+/* ── Skeuomorphic Panel ────────────────────────────────────────── */
+.panel {
+  background: var(--carbon-pattern);
+  border: 1px solid #222;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #000;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--gap-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  pointer-events: none;
+}
+
+.panel-header {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--apex-muted);
+  margin-bottom: var(--gap-md);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+.panel-header::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--apex-red);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--r-md);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast) ease;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--apex-red) 0%, var(--apex-red-dark) 100%);
+  color: #fff;
+  box-shadow: var(--shadow-button);
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 5px 0 #0A0A0A, 0 6px 8px rgba(0,0,0,0.6), var(--shadow-glow);
+}
+
+.btn-primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #0A0A0A, inset 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.btn-ghost:hover {
+  color: var(--apex-text);
+  border-color: var(--apex-border-hi);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Controls ──────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--apex-muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.apex-select {
+  background: #111;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  outline: none;
+}
+
+.apex-select:focus {
+  border-color: var(--apex-red);
+}
+
+/* ── Badges ────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.badge-live {
+  background: var(--apex-red);
+  color: #fff;
+}
+
+.badge-live::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+.badge-delay {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--apex-amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* ── Table ─────────────────────────────────────────────────────── */
+.apex-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+
+.apex-table thead th {
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--apex-muted);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--apex-border);
+}
+
+.apex-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background var(--t-fast) ease;
+}
+
+.apex-table tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.apex-table tbody td {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+/* ── Segmented Control ─────────────────────────────────────────── */
+.seg-control {
+  display: inline-flex;
+  background: var(--apex-surface);
+  border: 1px solid var(--apex-border);
+  border-radius: 100px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg-btn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 100px;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast) ease;
+  color: var(--apex-muted);
+  background: transparent;
+}
+
+.seg-btn.active {
+  background: var(--apex-red);
+  color: #fff;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Utilities ─────────────────────────────────────────────────── */
+.text-red    { color: var(--apex-red); }
+.text-muted  { color: var(--apex-muted); }
+.text-green  { color: var(--apex-green); }
+.text-purple { color: var(--apex-purple); }
+.text-amber  { color: var(--apex-amber); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+}
+
+.card-hover {
+  transition: transform var(--t-base) ease, box-shadow var(--t-base) ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* ── Animations ────────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.7); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes pulse-cta {
+  0%, 100% { box-shadow: 0 4px 0 #0A0A0A, 0 5px 8px rgba(0,0,0,0.7), 0 0 30px rgba(225,6,0,0.3); }
+  50%       { box-shadow: 0 4px 0 #0A0A0A, 0 5px 8px rgba(0,0,0,0.7), 0 0 50px rgba(225,6,0,0.6); }
+}
+
+@keyframes scan-line {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+/* ── Reduced Motion ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Loading Spinner ───────────────────────────────────────────── */
+.apex-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: var(--apex-red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Progress Bar ──────────────────────────────────────────────── */
+.progress-bar {
+  height: 2px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--apex-red);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px var(--apex-red-glow);
+}
+
+/* ── Auth Page ─────────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(225,6,0,0.08) 0%, var(--apex-bg) 70%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--gap-2xl);
+}
