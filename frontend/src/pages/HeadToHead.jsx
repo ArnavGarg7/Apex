@@ -108,7 +108,7 @@ function RacePaceChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '#
     const y = d3.scaleLinear().domain([yMax, yMin]).nice().range([iH, 0]); // Invert so faster (lower time) is at the TOP!
 
     g.append('g')
-      .call(d3.axisLeft(y).tickSize(-iW).tickFormat(d => `${Math.floor(d/60)}:${(d%60).toFixed(1).padStart(4,'0')}`))
+      .call(d3.axisLeft(y).ticks(6).tickSize(-iW).tickFormat(''))
       .selectAll('line').attr('stroke', 'rgba(255,255,255,0.04)')
       .select(function() { return this.parentNode; })
       .select('.domain').remove();
