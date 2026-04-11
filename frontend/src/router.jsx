@@ -11,6 +11,7 @@ import Calendar     from '@/pages/Calendar';
 import Circuit      from '@/pages/Circuit';
 import Weather      from '@/pages/Weather';
 import News         from '@/pages/News';
+import RadioSentiment from '@/pages/RadioSentiment';
 import Encyclopedia from '@/pages/Encyclopedia';
 import Championship from '@/pages/Championship';
 import Auth         from '@/pages/Auth';
@@ -51,6 +52,7 @@ const router = createBrowserRouter([
       { path: '/circuit',    element: <Circuit /> },
       { path: '/weather',    element: <Weather /> },
       { path: '/news',       element: <News /> },
+      { path: '/radio',      element: <RadioSentiment /> },
       { path: '/encyclopedia', element: <Encyclopedia /> },
     ],
   },

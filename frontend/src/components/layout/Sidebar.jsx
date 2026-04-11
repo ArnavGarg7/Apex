@@ -13,6 +13,7 @@ const LINKS = [
   { to: '/circuit',      icon: '○', label: 'Circuits'     },
   { to: '/weather',      icon: '☁', label: 'Weather'      },
   { to: '/news',         icon: '◎', label: 'AI News'      },
+  { to: '/radio',        icon: '»', label: 'Race Control' },
   { to: '/encyclopedia', icon: '⊞', label: 'Encyclopedia' },
 ];
 
