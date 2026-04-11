@@ -153,18 +153,47 @@ async def get_weather_for_circuit(circuit_id: str) -> dict:
         # /weather.rain.1h is only available when it IS raining — not useful as a chance metric
         pop_percent = 0
         try:
-            fcast_resp = await client.get(f'{OWM_BASE}/forecast', params={**params, 'cnt': 1})
+            fcast_resp = await client.get(f'{OWM_BASE}/forecast', params={**params, 'cnt': 2})
             if fcast_resp.status_code == 200:
                 fcast_data = fcast_resp.json()
                 buckets = fcast_data.get('list', [])
                 if buckets:
-                    pop = buckets[0].get('pop', 0)  # 0.0–1.0
+                    # Take the MAX pop from the first two 3h buckets (next 6h window)
+                    pop = max(b.get('pop', 0) for b in buckets)
                     pop_percent = round(pop * 100, 1)
         except Exception:
             pass  # fall through — pop_percent remains 0
 
     condition_id = data['weather'][0]['id']
     air_temp = data['main']['temp']
+    humidity = data['main']['humidity']
+
+    # Derive a condition-based rain probability from current OWM weather code.
+    # This ensures that if it IS raining right now, we show a high probability
+    # even if the 3-hour forecast bucket says 0 (e.g. just started raining).
+    if condition_id < 300:          # Thunderstorm
+        cond_pop = 100
+    elif condition_id < 400:        # Drizzle
+        cond_pop = 85
+    elif condition_id < 600:        # Rain
+        cond_pop = 95
+    elif condition_id < 700:        # Snow
+        cond_pop = 90
+    elif condition_id < 800:        # Atmosphere (fog, mist) — some moisture
+        cond_pop = max(30, round(humidity * 0.4))
+    elif condition_id == 800:       # Clear sky
+        cond_pop = max(0, round((humidity - 60) * 0.3)) if humidity > 60 else 0
+    elif condition_id == 801:       # Few clouds
+        cond_pop = max(5, round((humidity - 50) * 0.25)) if humidity > 50 else 5
+    elif condition_id == 802:       # Scattered clouds
+        cond_pop = max(10, round(humidity * 0.2))
+    elif condition_id == 803:       # Broken clouds
+        cond_pop = max(20, round(humidity * 0.3))
+    else:                           # Overcast
+        cond_pop = max(30, round(humidity * 0.45))
+
+    # Final rain_chance: take the highest of forecast PoP and current-condition estimate
+    rain_chance = max(pop_percent, cond_pop)
 
     return {
         'circuit_id':        circuit_id,
@@ -173,13 +202,13 @@ async def get_weather_for_circuit(circuit_id: str) -> dict:
         'temperature_air':   round(air_temp, 1),
         'temperature_track': _track_temp_estimate(air_temp, condition_id),
         'feels_like':        round(data['main']['feels_like'], 1),
-        'humidity':          data['main']['humidity'],
+        'humidity':          humidity,
         'pressure':          data['main']['pressure'],
         'wind_speed':        round(data['wind']['speed'] * 3.6, 1),  # m/s → km/h
         'wind_direction':    data['wind'].get('deg', 0),
         'condition':         data['weather'][0]['description'].title(),
         'condition_icon':    data['weather'][0]['icon'],
-        'rain_chance':       pop_percent,
+        'rain_chance':       rain_chance,
         'visibility':        round(data.get('visibility', 10000) / 1000, 1),
         'source':            'openweathermap',
     }

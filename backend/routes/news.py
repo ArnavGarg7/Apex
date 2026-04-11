@@ -22,12 +22,21 @@ def fetch_f1_news_from_gemini() -> dict:
     api_key = settings.GEMINI_API_KEY
 
     fallback_articles = [
-        {"title": "Hamilton's Ferrari Era Begins: 'I've Never Felt More Motivated'", "source": "APEX Sports", "time": "1h ago", "summary": "Lewis Hamilton has spoken exclusively about his maiden year with Scuderia Ferrari, revealing the cultural shift has reinvigorated his drive for an 8th title. He set his fastest laps yet in the SF-26 during recent simulator sessions."},
+        {"title": "Hamilton's Ferrari Era Begins: 'I've Never Felt More Motivated'", "source": "Sky Sports F1", "time": "1h ago", "summary": "Lewis Hamilton has spoken exclusively about his maiden year with Scuderia Ferrari, revealing the cultural shift has reinvigorated his drive for an 8th title. He set his fastest laps yet in the SF-26 during recent simulator sessions."},
         {"title": "McLaren Lead 2026 Constructors' Championship After 3 Rounds", "source": "F1 Official", "time": "3h ago", "summary": "Norris and Piastri continue their dominant run, with the MCL60's ground-effect package proving formidable on street circuits. McLaren's tyre management strategy has been singled out as their key advantage."},
-        {"title": "New 2026 Power Unit Regs: Who's Leading the Engine War?", "source": "Technical F1", "time": "5h ago", "summary": "With the 2026 hybrid regulations now live, Honda-powered Aston Martin and the revamped Mercedes unit are emerging as early threats to Ferrari's supposed power advantage. Dyno outputs and deployment strategies are being kept tightly classified."},
+        {"title": "New 2026 Power Unit Regs: Who's Leading the Engine War?", "source": "Autosport", "time": "5h ago", "summary": "With the 2026 hybrid regulations now live, Honda-powered Aston Martin and the revamped Mercedes unit are emerging as early threats to Ferrari's supposed power advantage. Dyno outputs and deployment strategies are being kept tightly classified."},
         {"title": "Red Bull Confirm Verstappen at Crossroads Over 2027 Contract", "source": "Sky Sports F1", "time": "Yesterday", "summary": "Max Verstappen's future remains uncertain as several top teams circle with attractive offers for the post-2026 era. Red Bull are said to be preparing a record-breaking retention package."},
-        {"title": "FIA Introduce AI-Assisted Race Control for 2026 Season", "source": "Motorsport Week", "time": "2d ago", "summary": "The governing body has launched a pilot AI decision-support system for stewards to improve consistency of penalty enforcement. The system flagged 14 incidents in Round 1 alone."},
-        {"title": "Ferrari's Leclerc: 'We Can Win the Title This Year'", "source": "La Gazzetta", "time": "3d ago", "summary": "Charles Leclerc is bullish about Ferrari's 2026 championship prospects, pointing to their improved reliability record and the SF-26's superior downforce in the medium-high speed sections."}
+        {"title": "FIA Introduce AI-Assisted Race Control for 2026 Season", "source": "Motorsport.com", "time": "Yesterday", "summary": "The governing body has launched a pilot AI decision-support system for stewards to improve consistency of penalty enforcement. The system flagged 14 incidents in Round 1 alone."},
+        {"title": "Ferrari's Leclerc: 'We Can Win the Title This Year'", "source": "The Race", "time": "2 days ago", "summary": "Charles Leclerc is bullish about Ferrari's 2026 championship prospects, pointing to their improved reliability record and the SF-26's superior downforce in the medium-high speed sections."},
+        {"title": "Aston Martin's Bold Upgrade Package Shakes Up Midfield", "source": "Autosport", "time": "2 days ago", "summary": "Aston Martin brought a significant floor and sidepod revision to the last race weekend, immediately propelling the AMR26 into Q3 contention. Fernando Alonso described it as the biggest single step the team has made in his tenure."},
+        {"title": "Pirelli Reveals 2026 Tyre Compounds After Extensive Testing", "source": "F1.com", "time": "3 days ago", "summary": "Pirelli has finalised its compound range for the 2026 season following extensive testing in Abu Dhabi and Bahrain. The new C3 compound offers 8% more mechanical grip to compensate for reduced downforce in the new regulations."},
+        {"title": "George Russell Takes Pole in Dominant Quali Display", "source": "BBC Sport", "time": "3 days ago", "summary": "George Russell secured pole position with a stunning final sector that no rival could match, extending his qualifying record for Mercedes. The Briton was visibly moved after ending a 14-race pole drought."},
+        {"title": "Alpine's Doohan Impresses With Back-to-Back Points Finishes", "source": "Motorsport.com", "time": "4 days ago", "summary": "Jack Doohan has silenced critics with consecutive top-10 finishes, showcasing smooth racecraft and strong tyre management rarely seen from a rookie. Alpine management have privately expressed delight at his rapid adaptation."},
+        {"title": "FIA Clears Red Bull Rear Wing After Technical Protest", "source": "The Race", "time": "4 days ago", "summary": "Following a technical protest by Ferrari, the FIA declared Red Bull's rear wing assembly legal under 2026 regulations after a two-hour inspection. The ruling was a significant relief for Red Bull ahead of the championship battle."},
+        {"title": "Haas Secure First Podium in Team History at Jeddah", "source": "Sky Sports F1", "time": "5 days ago", "summary": "Haas driver Ollie Bearman capitalised on a late safety car and superb strategy to claim a stunning third place at the Saudi Arabian Grand Prix. The result marks the American team's best-ever race finish."},
+        {"title": "Williams Announce Major Shareholder Investment for 2027 Era", "source": "BBC Sport", "time": "5 days ago", "summary": "Williams Racing has confirmed a significant investment injection ahead of the 2027 regulations, aimed at revamping the wind tunnel and simulator infrastructure. CEO James Vowles described it as a 'transformative moment' for the Grove-based outfit."},
+        {"title": "Andretti Global Submits Revised FIA Entry Documentation", "source": "Autosport", "time": "6 days ago", "summary": "Andretti Global — now backed by General Motors — has submitted a revised entry application to the FIA for a 2028 start, following updated financial guarantees. The bid is expected to receive a formal hearing within the next 30 days."},
+        {"title": "F1 Confirms Record 24-Race Calendar for 2027 Season", "source": "F1.com", "time": "7 days ago", "summary": "Formula 1 has officially confirmed a 24-race calendar for the 2027 season, with Madrid joining the grid for the first time and a second US race in Dallas under discussion. The announcement came alongside new broadcast rights deals across three continents."}
     ]
 
     if not api_key:
@@ -58,9 +67,14 @@ def fetch_f1_news_from_gemini() -> dict:
     )
 
     try:
+        from google.genai import types as genai_types
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                max_output_tokens=4096,
+                temperature=0.7,
+            ),
         )
         raw = response.text.strip()
 
