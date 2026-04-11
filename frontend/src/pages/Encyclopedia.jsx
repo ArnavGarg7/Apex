@@ -7,11 +7,14 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
 
 // ── Driver Card Component ────────────────────────────────────────────────
 function DriverCard({ driver }) {
+  const displayCode = driver.code && driver.code !== '\\N' ? driver.code : 
+                      (driver.driver_id ? driver.driver_id.substring(0, 3).toUpperCase() : '---');
+
   return (
     <div className="panel card-hover" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 140 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#E10600', fontWeight: 700, letterSpacing: '0.1em' }}>
-          {driver.code || 'UNK'}
+          {displayCode}
         </span>
         <span style={{ fontFamily: 'Titillium Web', fontSize: '0.65rem', color: '#444' }}>
           {driver.nationality || 'Unknown'}
