@@ -52,15 +52,21 @@ async def get_drivers(user=Depends(require_auth)):
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_all_drivers)
     return data
+bio_cache = {}
 
 @router.get('/driver-bio/{driver_id}')
 async def get_driver_bio(driver_id: str, name: str = "", user=Depends(require_auth)):
+    if driver_id in bio_cache:
+        return bio_cache[driver_id]
+
     # Generate an AI bio for the driver using Gemini (cached so it doesn't spam)
     from backend.config import get_settings
     settings = get_settings()
     api_key = settings.GEMINI_API_KEY
     if not api_key:
-        return {"bio": f"{name} is a Formula 1 driver. (Gemini API key missing)", "legacy_score": 75}
+        fallback = {"bio": f"{name} is a Formula 1 driver. (Gemini API key missing)", "legacy_score": 75}
+        bio_cache[driver_id] = fallback
+        return fallback
         
     try:
         from google import genai
@@ -86,9 +92,15 @@ async def get_driver_bio(driver_id: str, name: str = "", user=Depends(require_au
             raw = match.group(0)
             
         data = json.loads(raw)
-        return {"bio": data.get("bio", "Bio unavailable."), "legacy_score": data.get("legacy_score", 50)}
+        result = {"bio": data.get("bio", "Bio unavailable."), "legacy_score": data.get("legacy_score", 50)}
+        bio_cache[driver_id] = result
+        return result
     except Exception as e:
-        return {"bio": f"Could not generate bio: {e}", "legacy_score": 50}
+        error_result = {"bio": f"Could not generate bio: {e}", "legacy_score": 50}
+        # Do not cache hard errors, so they can retry later, unless you want to throttle
+        # We will cache a simple rate limit msg for a short time, though a dict doesn't have expiry
+        # Let's not cache failures so refreshing can retry
+        return error_result
 
 
 

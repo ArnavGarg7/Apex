@@ -53,13 +53,18 @@ function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '
     g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(6)).call(axisStyle);
     g.append('g').call(d3.axisLeft(y).ticks(5)).call(axisStyle);
 
-    const line = d3.line().x(d => x(d.distance)).y(d => y(d[yKey])).curve(d3.curveMonotoneX);
+    const line = d3.line()
+      .defined(d => d[yKey] != null && !isNaN(d[yKey]))
+      .x(d => x(d.distance))
+      .y(d => y(d[yKey]))
+      .curve(d3.curveMonotoneX);
 
     [{d: data1, c: color1}, {d: data2, c: color2}].forEach(({d, c}) => {
-      if (!d.length) return;
-      g.append('path').datum(d).attr('fill','none').attr('stroke', c)
+      const validData = d.filter(pt => pt[yKey] != null && !isNaN(pt[yKey]));
+      if (!validData.length) return;
+      g.append('path').datum(validData).attr('fill','none').attr('stroke', c)
         .attr('stroke-width', 6).attr('opacity', 0.12).attr('d', line);
-      const path = g.append('path').datum(d).attr('fill','none').attr('stroke', c)
+      const path = g.append('path').datum(validData).attr('fill','none').attr('stroke', c)
         .attr('stroke-width', 2).attr('d', line);
       const len = path.node().getTotalLength();
       path.attr('stroke-dasharray', len).attr('stroke-dashoffset', len)
@@ -122,11 +127,9 @@ function RacePaceChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '#
 
     // Scatter points
     const drawScatter = (data, baseColor) => {
-      // Filter out laps outside our tight Y zoom
-      const valid = data.filter(d => d.time_s <= yMax);
-      
-      const dots = g.selectAll('circle.d')
-        .data(valid).enter()
+      const dots = g.selectAll(`circle.d-${baseColor.replace('#','')}`)
+        .data(data.filter(d => d.time_s <= yMax))
+        .enter()
         .append('circle')
         .attr('cx', d => x(d.lap))
         .attr('cy', d => y(d.time_s))
@@ -138,10 +141,14 @@ function RacePaceChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '#
 
       dots.transition().duration(800).delay((d,i) => i * 15).ease(d3.easeElasticOut).attr('r', 3.5);
 
-      // Connect lines to show stints
-      const line = d3.line().x(d => x(d.lap)).y(d => y(d.time_s));
+      // Connect lines to show stints, breaking gaps correctly
+      const line = d3.line()
+        .defined(d => d.time_s <= yMax && d.time_s != null)
+        .x(d => x(d.lap))
+        .y(d => y(d.time_s));
+        
       g.append('path')
-        .datum(valid)
+        .datum(data)
         .attr('fill', 'none')
         .attr('stroke', baseColor)
         .attr('stroke-width', 1)
