@@ -12,6 +12,7 @@ import Circuit      from '@/pages/Circuit';
 import Weather      from '@/pages/Weather';
 import News         from '@/pages/News';
 import Encyclopedia from '@/pages/Encyclopedia';
+import Championship from '@/pages/Championship';
 import Auth         from '@/pages/Auth';
 import PageShell    from '@/components/layout/PageShell';
 
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
       { path: '/strategy',   element: <Strategy /> },
       { path: '/h2h',        element: <HeadToHead /> },
       { path: '/standings',  element: <Standings /> },
+      { path: '/championship', element: <Championship /> },
       { path: '/calendar',   element: <Calendar /> },
       { path: '/circuit',    element: <Circuit /> },
       { path: '/weather',    element: <Weather /> },

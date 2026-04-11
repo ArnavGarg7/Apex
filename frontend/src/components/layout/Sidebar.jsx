@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/strategy',     icon: '◈', label: 'Strategy'     },
   { to: '/h2h',          icon: '⇄', label: 'Compare' },
   { to: '/standings',    icon: '▲', label: 'Standings'    },
+  { to: '/championship', icon: '❂', label: 'Championship' },
   { to: '/calendar',     icon: '◷', label: 'Calendar'     },
   { to: '/circuit',      icon: '○', label: 'Circuits'     },
   { to: '/weather',      icon: '☁', label: 'Weather'      },
