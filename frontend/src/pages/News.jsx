@@ -14,7 +14,7 @@ export default function News() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: '1.2rem', marginBottom: 4 }}>AI News Intelligence</h1>
-          <p style={{ color: '#555', fontSize: '0.8rem' }}>Real-time F1 developments aggregated by Gemini AI.</p>
+          <p style={{ color: '#555', fontSize: '0.8rem' }}>A full week of F1 developments — aggregated by Gemini AI.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -58,54 +58,78 @@ export default function News() {
         </div>
       )}
 
-      {!loading && !error && data?.articles && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 18 }}>
-          {data.articles.map((article, i) => (
+      {!loading && !error && data?.articles && (() => {
+        const articles = data.articles;
+        const lead = articles[0];
+        const rest = articles.slice(1);
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Featured lead article */}
             <article
-              key={i}
               className="panel card-hover"
               style={{
                 borderTop: '2px solid #E10600',
-                display: 'flex', flexDirection: 'column', gap: 10,
-                padding: '20px 22px',
+                padding: '28px 32px',
+                display: 'flex', flexDirection: 'column', gap: 12,
+                background: 'linear-gradient(135deg, rgba(225,6,0,0.04) 0%, rgba(0,0,0,0) 100%)',
               }}
             >
-              {/* Source + time */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{
-                  fontFamily: 'Orbitron, monospace', fontSize: '0.52rem',
-                  color: '#E10600', fontWeight: 700, letterSpacing: '0.12em',
-                }}>
-                  {(article.source || 'F1 NEWS').toUpperCase()}
+                <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.52rem', color: '#E10600', fontWeight: 700, letterSpacing: '0.12em' }}>
+                  {(lead.source || 'F1 NEWS').toUpperCase()}
                 </span>
-                <span style={{ fontFamily: 'Titillium Web', fontSize: '0.65rem', color: '#555' }}>
-                  {article.time || 'Just now'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#E10600',
+                    background: 'rgba(225,6,0,0.1)', border: '1px solid rgba(225,6,0,0.3)',
+                    padding: '2px 8px', borderRadius: 3, letterSpacing: '0.15em',
+                  }}>LEAD STORY</span>
+                  <span style={{ fontFamily: 'Titillium Web', fontSize: '0.65rem', color: '#555' }}>{lead.time || 'Just now'}</span>
+                </div>
               </div>
-
-              {/* Title */}
-              <h2 style={{
-                fontFamily: 'Titillium Web, sans-serif', fontWeight: 700,
-                fontSize: '0.95rem', color: '#f0f0f0', lineHeight: 1.35,
-                margin: 0,
-              }}>
-                {article.title}
+              <h2 style={{ fontFamily: 'Titillium Web, sans-serif', fontWeight: 700, fontSize: '1.25rem', color: '#fff', lineHeight: 1.3, margin: 0 }}>
+                {lead.title}
               </h2>
-
-              {/* Summary */}
-              <p style={{
-                fontFamily: 'Titillium Web, sans-serif', fontSize: '0.78rem',
-                color: '#888', lineHeight: 1.6, margin: 0, flex: 1,
-              }}>
-                {article.summary}
+              <p style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.85rem', color: '#aaa', lineHeight: 1.7, margin: 0 }}>
+                {lead.summary}
               </p>
-
-              {/* Bottom accent */}
-              <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(225,6,0,0.3), transparent)', marginTop: 4 }} />
+              <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(225,6,0,0.5), transparent)', marginTop: 4 }} />
             </article>
-          ))}
-        </div>
-      )}
+
+            {/* Grid of remaining articles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 16 }}>
+              {rest.map((article, i) => (
+                <article
+                  key={i}
+                  className="panel card-hover"
+                  style={{
+                    borderTop: `2px solid ${i % 3 === 0 ? '#3671C6' : i % 3 === 1 ? '#E10600' : '#F59E0B'}`,
+                    display: 'flex', flexDirection: 'column', gap: 10,
+                    padding: '18px 20px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#888', fontWeight: 700, letterSpacing: '0.1em' }}>
+                      {(article.source || 'F1 NEWS').toUpperCase()}
+                    </span>
+                    <span style={{ fontFamily: 'Titillium Web', fontSize: '0.62rem', color: '#555' }}>
+                      {article.time || 'Just now'}
+                    </span>
+                  </div>
+                  <h2 style={{ fontFamily: 'Titillium Web, sans-serif', fontWeight: 700, fontSize: '0.92rem', color: '#f0f0f0', lineHeight: 1.35, margin: 0 }}>
+                    {article.title}
+                  </h2>
+                  <p style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.76rem', color: '#777', lineHeight: 1.6, margin: 0, flex: 1 }}>
+                    {article.summary}
+                  </p>
+                  <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(255,255,255,0.05), transparent)', marginTop: 4 }} />
+                </article>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {!loading && !error && !data && (
         <div className="panel" style={{ textAlign: 'center', padding: '60px 24px', color: '#444' }}>

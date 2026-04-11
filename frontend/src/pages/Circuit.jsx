@@ -1,5 +1,5 @@
 // src/pages/Circuit.jsx — Full circuit explorer with rich SVG maps + circuit switcher
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
 
@@ -75,13 +75,14 @@ function CircuitSVG({ topology, loading }) {
 
 export default function Circuit() {
   const [selected, setSelected] = useState('bahrain');
-  const { data: topology, loading: topoLoading, refetch: fetchTopo } = useRaceData(`/api/circuit/${selected}/topology`);
-  const { data: history,  loading: histLoading, refetch: fetchHist } = useRaceData(`/api/circuit/${selected}/history`);
-
-  useEffect(() => {
-    fetchTopo();
-    fetchHist();
-  }, [selected]);
+  const { data: topology, loading: topoLoading } = useRaceData(
+    `/api/circuit/${selected}/topology`,
+    { immediate: true, deps: [selected] }
+  );
+  const { data: history, loading: histLoading } = useRaceData(
+    `/api/circuit/${selected}/history`,
+    { immediate: true, deps: [selected] }
+  );
 
   const circuit = ALL_CIRCUITS.find(c => c.id === selected) || ALL_CIRCUITS[0];
 

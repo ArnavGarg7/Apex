@@ -45,14 +45,16 @@ def fetch_f1_news_from_gemini() -> dict:
     today = date.today().strftime('%B %d, %Y')
     prompt = (
         f"Today's date is {today}. You are an expert Formula 1 journalist. "
-        "Search for and summarize the 6 most recent and noteworthy Formula 1 news stories from the past 48 hours. "
-        "Focus on: race results, driver news, team announcements, technical updates, and championship standings. "
+        "Search for and summarize the 15 most important Formula 1 news stories from the past 7 days. "
+        "Cover a range of topics including: race results, qualifying, driver news, team announcements, "
+        "technical updates, FIA regulations, championship standings, and paddock gossip. "
+        "Order them from most recent to oldest. "
         "For each story return a JSON object with these exact keys: "
         "'title' (punchy, specific headline — include driver/team names), "
-        "'source' (real publisher name, e.g. 'Sky Sports F1', 'Autosport', 'The Race', 'F1.com', 'Motorsport.com'), "
-        "'time' (relative time like '2h ago', 'Today', 'Yesterday'), "
+        "'source' (real publisher name, e.g. 'Sky Sports F1', 'Autosport', 'The Race', 'F1.com', 'Motorsport.com', 'BBC Sport'), "
+        "'time' (relative time like '1h ago', '3h ago', 'Yesterday', '2 days ago', '3 days ago', etc.), "
         "'summary' (2 sentences: first states the key fact, second adds context or implication). "
-        "Return ONLY a raw JSON array of those 6 objects — no markdown, no code blocks, no preamble, no explanation."
+        "Return ONLY a raw JSON array of those 15 objects — no markdown, no code blocks, no preamble, no explanation."
     )
 
     try:
@@ -75,7 +77,7 @@ def fetch_f1_news_from_gemini() -> dict:
         if not isinstance(articles, list):
             raise ValueError("Gemini did not return a list")
 
-        return {"articles": articles[:6]}
+        return {"articles": articles[:15]}
 
     except Exception as e:
         logger.warning(f"Gemini processing failure, using fallback: {e}")

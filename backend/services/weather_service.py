@@ -149,6 +149,20 @@ async def get_weather_for_circuit(circuit_id: str) -> dict:
                 'source': 'error',
             }
 
+        # Also grab the /forecast endpoint for probability-of-precipitation (POP)
+        # /weather.rain.1h is only available when it IS raining — not useful as a chance metric
+        pop_percent = 0
+        try:
+            fcast_resp = await client.get(f'{OWM_BASE}/forecast', params={**params, 'cnt': 1})
+            if fcast_resp.status_code == 200:
+                fcast_data = fcast_resp.json()
+                buckets = fcast_data.get('list', [])
+                if buckets:
+                    pop = buckets[0].get('pop', 0)  # 0.0–1.0
+                    pop_percent = round(pop * 100, 1)
+        except Exception:
+            pass  # fall through — pop_percent remains 0
+
     condition_id = data['weather'][0]['id']
     air_temp = data['main']['temp']
 
@@ -165,7 +179,8 @@ async def get_weather_for_circuit(circuit_id: str) -> dict:
         'wind_direction':    data['wind'].get('deg', 0),
         'condition':         data['weather'][0]['description'].title(),
         'condition_icon':    data['weather'][0]['icon'],
-        'rain_chance':       round(data.get('rain', {}).get('1h', 0) * 100, 1) if 'rain' in data else 0,
+        'rain_chance':       pop_percent,
         'visibility':        round(data.get('visibility', 10000) / 1000, 1),
         'source':            'openweathermap',
     }
+
