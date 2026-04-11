@@ -66,15 +66,31 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
             current_stint['endLap'] = latest_lap.get('lap_number', 0)
             stints.append(current_stint)
 
-        # Build feature row
+        # Map compound to integer encoding
+        compound_map = {'SOFT': 0, 'MEDIUM': 1, 'HARD': 2, 'INTERMEDIATE': 3, 'WET': 4}
+        compound_str = str(latest_lap.get('compound', 'UNKNOWN')).upper()
+        compound_enc = compound_map.get(compound_str, 1) # Default to medium if unknown
+
+        # Calculate pace delta if possible
+        lap_time_delta = 0.0
+        if len(laps) >= 2:
+            prev_time = laps[-2].get('lap_duration')
+            curr_time = latest_lap.get('lap_duration')
+            if prev_time and curr_time:
+                lap_time_delta = float(curr_time) - float(prev_time)
+
+        # Build feature row exactly matching predict.py expected columns
         feature_row = {
-            'compound':       latest_lap.get('compound', 'UNKNOWN'),
-            'tyre_life':      latest_lap.get('tyre_life_laps', 0) or 0,
-            'lap_number':     latest_lap.get('lap_number', 0) or 0,
-            'pit_stops':      pit_counts,
-            'lap_time':       latest_lap.get('lap_duration', 90.0) or 90.0,
-            'is_sc':          False,
-            'driver_number':  driver_number,
+            'lap_number':       latest_lap.get('lap_number', 0) or 0,
+            'tyre_age':         latest_lap.get('tyre_life_laps', 0) or 0,
+            'compound_enc':     compound_enc,
+            'lap_time_delta':   lap_time_delta,
+            'gap_ahead':        0.0,  # F1 live telemetry does not stream inline interval deltas cleanly
+            'gap_behind':       0.0,
+            'sc_lap':           1 if latest_lap.get('is_pit_out_lap') else 0, # proxy is_sc or outlap
+            'circuit_id':       'unknown',
+            'total_race_laps':  60,
+            'pit_loss_avg':     22.5,
         }
 
         # Run prediction in thread
