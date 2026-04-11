@@ -76,11 +76,6 @@ function CircuitSVG({ topology, loading }) {
 export default function Circuit() {
   const [selected, setSelected] = useState('bahrain');
 
-  // Track which circuit each dataset actually belongs to.
-  // This prevents showing stale data for circuit A while fetching circuit B.
-  const [topoCircuit, setTopoCircuit]   = useState(null);
-  const [histCircuit, setHistCircuit]   = useState(null);
-
   const { data: topology, loading: topoLoading } = useRaceData(
     `/api/circuit/${selected}/topology`,
     { immediate: true, deps: [selected] }
@@ -89,24 +84,6 @@ export default function Circuit() {
     `/api/circuit/${selected}/history`,
     { immediate: true, deps: [selected] }
   );
-
-  // When new topology arrives, record which circuit it belongs to
-  useEffect(() => {
-    if (!topoLoading && topology !== undefined) {
-      setTopoCircuit(selected);
-    }
-  }, [topology, topoLoading, selected]);
-
-  // When new history arrives, record which circuit it belongs to
-  useEffect(() => {
-    if (!histLoading && history !== undefined) {
-      setHistCircuit(selected);
-    }
-  }, [history, histLoading, selected]);
-
-  // Treat data as loading until it belongs to the currently selected circuit
-  const isTopoReady = !topoLoading && topoCircuit === selected;
-  const isHistReady = !histLoading && histCircuit === selected;
 
   const circuit = ALL_CIRCUITS.find(c => c.id === selected) || ALL_CIRCUITS[0];
 
@@ -157,7 +134,7 @@ export default function Circuit() {
               {circuit.flag} {circuit.name.toUpperCase()} CIRCUIT
             </div>
           </div>
-          <CircuitSVG topology={isTopoReady ? topology : null} loading={!isTopoReady} />
+          <CircuitSVG key={selected} topology={topology} loading={topoLoading || !topology} />
 
           {/* Legend */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 8 }}>
@@ -194,7 +171,7 @@ export default function Circuit() {
           {/* Race history */}
           <div className="panel">
             <div className="panel-header">Recent Winners</div>
-            {!isHistReady ? (
+            {!history || histLoading ? (
               <div className="apex-spinner" style={{ margin: '12px auto' }} />
             ) : (history || []).length === 0 ? (
               <div style={{ color: '#444', fontFamily: 'Titillium Web', fontSize: '0.75rem', padding: '12px 0' }}>

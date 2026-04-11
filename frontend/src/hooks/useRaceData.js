@@ -18,6 +18,13 @@ export function useRaceData(endpoint, { immediate = false, deps = [] } = {}) {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
+  const [currentUrl, setCurrentUrl] = useState(endpoint);
+
+  // If the endpoint drastically changes (user clicked another track), immediately wipe old data
+  if (endpoint !== currentUrl) {
+    setData(null);
+    setCurrentUrl(endpoint);
+  }
 
   // Track whether we've done the initial fetch
   const hasFetched = useRef(false);
