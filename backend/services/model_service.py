@@ -40,8 +40,8 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
         return None
 
     try:
-        # Fetch recent lap data and driver info
-        laps    = await openf1.get_lap_data(session_key, driver_number, last_n=3)
+        # Fetch all laps for the driver to reconstruct stint history
+        laps    = await openf1.get_lap_data(session_key, driver_number)
         pits    = await openf1.get_pit_data(session_key)
         drivers = await openf1.get_drivers(session_key)
 
@@ -50,7 +50,21 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
 
         latest_lap = laps[-1]
         pit_counts = sum(1 for p in pits if p.get('driver_number') == driver_number)
-        driver_info = next((d for d in drivers if d.get('driver_number') == driver_number), {})
+        
+        # Build stint history
+        stints = []
+        current_stint = None
+        for lap in laps:
+            comp = lap.get('compound', 'UNKNOWN')
+            lap_num = lap.get('lap_number', 0)
+            if not current_stint or current_stint['compound'] != comp:
+                if current_stint:
+                    current_stint['endLap'] = lap_num - 1
+                    stints.append(current_stint)
+                current_stint = {'compound': comp, 'startLap': lap_num}
+        if current_stint:
+            current_stint['endLap'] = latest_lap.get('lap_number', 0)
+            stints.append(current_stint)
 
         # Build feature row
         feature_row = {
@@ -59,14 +73,18 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
             'lap_number':     latest_lap.get('lap_number', 0) or 0,
             'pit_stops':      pit_counts,
             'lap_time':       latest_lap.get('lap_duration', 90.0) or 90.0,
-            'is_sc':          False,  # Would need race-control data
+            'is_sc':          False,
             'driver_number':  driver_number,
         }
 
-        # Run prediction in thread to avoid blocking event loop
+        # Run prediction in thread
         loop = asyncio.get_event_loop()
         from ml.predict import predict_pit
         result = await loop.run_in_executor(None, predict_pit, feature_row)
+        
+        # Merge live stint data into result
+        result['stints'] = stints
+        result['total_laps'] = 60 # Default/placeholder, would need session context to know total
 
         return result
 

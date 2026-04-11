@@ -140,8 +140,8 @@ export default function Strategy() {
               <div className="panel">
                 <div className="panel-header">Tyre Stint History</div>
                 <TyreStintBar
-                  stints={[{ compound: 'SOFT', startLap: 1, endLap: 20 }, { compound: 'MEDIUM', startLap: 21, endLap: 45 }]}
-                  totalLaps={58}
+                  stints={prediction.actual_stints?.length ? prediction.actual_stints : [{ compound: 'SOFT', startLap: 1, endLap: 20 }, { compound: 'MEDIUM', startLap: 21, endLap: 45 }]}
+                  totalLaps={prediction.total_laps || 60}
                   pitLapPrediction={prediction.optimal_pit_lap}
                   confidence={prediction.pit_confidence}
                 />

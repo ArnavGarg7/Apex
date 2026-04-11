@@ -44,6 +44,8 @@ async def predict_strategy(driver_number: int, session_key: Optional[int] = None
         'compound_probabilities': result.get('compound_probabilities', {}),
         'optimal_pit_lap': result.get('optimal_pit_lap', 0),
         'shap_values': [s.dict() for s in shap_list],
+        'actual_stints': result.get('stints', []),
+        'total_laps': result.get('total_laps', 60),
         'data_delay_seconds': 30,
     }
 
