@@ -8,6 +8,7 @@ export default function Championship() {
   const [year, setYear] = useState(2024);
   const [remaining, setRemaining] = useState(5); // Default to simulating 5 out remaining
   
+  const { data: calendar } = useRaceData(`/api/calendar/${year}`, { immediate: true, deps: [year] });
   const { data: simData, loading, error, refetch } = useRaceData(`/api/simulate/monte-carlo?year=${year}&remaining=${remaining}`);
 
   const drivers = simData?.drivers || [];
@@ -29,14 +30,20 @@ export default function Championship() {
         <div className="field">
           <label className="label">SEASON</label>
           <select value={year} onChange={e => { setYear(Number(e.target.value)); }} className="apex-select" style={{ width: 120 }}>
-            {[2025,2024,2023,2022,2021].map(y => <option key={y} value={y}>{y}</option>)}
+            {[2026,2025,2024,2023,2022,2021].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
 
         <div className="field">
-          <label className="label">RACES TO SIMULATE</label>
-          <select value={remaining} onChange={e => { setRemaining(Number(e.target.value)); }} className="apex-select" style={{ width: 120 }}>
-            {[1, 2, 3, 4, 5, 10, 15, 24].map(r => <option key={r} value={r}>{r}</option>)}
+          <label className="label">SIMULATE REMAINDER FROM</label>
+          <select value={remaining} onChange={e => { setRemaining(Number(e.target.value)); }} className="apex-select" style={{ width: 240 }} disabled={!calendar}>
+            {!calendar ? <option value={remaining}>Loading circuits...</option> : 
+              calendar.slice().reverse().map((c, i) => (
+                <option key={c.round_number} value={i + 1}>
+                  {i + 1} Race{i+1 !== 1 ? 's' : ''} Left (From {c.event_name})
+                </option>
+              ))
+            }
           </select>
         </div>
 

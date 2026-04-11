@@ -97,8 +97,6 @@ async def get_driver_bio(driver_id: str, name: str = "", user=Depends(require_au
         return result
     except Exception as e:
         error_result = {"bio": f"{name} is a Formula 1 driver. Detailed AI biography is currently delayed due to F1 data link limits (API quota).", "legacy_score": 70}
-        # Cache the fallback so we don't keep hitting the 429 limit on this driver
-        bio_cache[driver_id] = error_result
         return error_result
 
 
