@@ -319,6 +319,42 @@ def get_telemetry_comparison(year: int, round_num: int, driver1: str, driver2: s
         return {driver1: {'telemetry': [], 'lap_time': None}, driver2: {'telemetry': [], 'lap_time': None}}
 
 
+# ─── Race Pace Comparison ────────────────────────────────────────────────────
+
+def get_race_pace_comparison(year: int, round_num: int, driver1: str, driver2: str) -> dict:
+    """Fetch all race laps for two drivers to plot race pace and tyre degradation."""
+    try:
+        session = fastf1.get_session(year, round_num, 'R')
+        session.load(laps=True, telemetry=False, weather=False, messages=False)
+        result = {}
+        for code in [driver1, driver2]:
+            try:
+                laps = session.laps.pick_driver(code)
+                if laps.empty:
+                    result[code] = []
+                    continue
+                
+                # Filter out obvious anomalies (in/out laps, super slow laps under SC)
+                quick_laps = laps.pick_quicklaps(threshold=1.1)
+                
+                points = []
+                for _, row in quick_laps.iterrows():
+                    points.append({
+                        'lap': int(row['LapNumber']),
+                        'time_s': row['LapTime'].total_seconds(),
+                        'compound': str(row['Compound']),
+                        'tyre_life': int(row['TyreLife']) if pd.notna(row['TyreLife']) else 0,
+                    })
+                result[code] = points
+            except Exception:
+                result[code] = []
+                
+        return result
+    except Exception as e:
+        logger.error(f"Race pace error ({year} R{round_num}): {e}")
+        return {driver1: [], driver2: []}
+
+
 # ─── All-time Driver & Constructor Databases ──────────────────────────────────
 
 def get_all_drivers() -> list:

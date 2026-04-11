@@ -1,4 +1,4 @@
-// src/pages/HeadToHead.jsx — Historical telemetry comparison with D3 charts
+// src/pages/HeadToHead.jsx — Historical telemetry & race pace comparison
 import { useState, useEffect, useRef } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
@@ -8,7 +8,15 @@ import * as d3 from 'd3';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
 
-// ── D3 Line Chart ─────────────────────────────────────────────────
+const COMPOUND_COLORS = {
+  SOFT: '#F94E5A',
+  MEDIUM: '#FFD400',
+  HARD: '#EDEDED',
+  INTERMEDIATE: '#44A540',
+  WET: '#1E6FE3',
+};
+
+// ── D3 Line Chart for Telemetry ──────────────────────────────────────────────
 function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '#3671C6', yKey = 'speed', maxY }) {
   const svgRef = useRef();
 
@@ -32,14 +40,12 @@ function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '
     const x = d3.scaleLinear().domain([0, d3.max(all, d => d.distance)]).range([0, iW]);
     const y = d3.scaleLinear().domain([0, maxY || d3.max(all, d => d[yKey])]).nice().range([iH, 0]);
 
-    // Grid
     g.append('g')
       .call(d3.axisLeft(y).tickSize(-iW).tickFormat(''))
       .selectAll('line').attr('stroke', 'rgba(255,255,255,0.04)')
       .select(function() { return this.parentNode; })
       .select('.domain').remove();
 
-    // Axes
     const axisStyle = sel => {
       sel.selectAll('text').attr('fill', '#555').attr('font-size', '0.55rem').attr('font-family', 'monospace');
       sel.selectAll('.domain, line').attr('stroke', '#2a2a2a');
@@ -51,10 +57,8 @@ function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '
 
     [{d: data1, c: color1}, {d: data2, c: color2}].forEach(({d, c}) => {
       if (!d.length) return;
-      // Glow shadow
       g.append('path').datum(d).attr('fill','none').attr('stroke', c)
         .attr('stroke-width', 6).attr('opacity', 0.12).attr('d', line);
-      // Main line (animated draw)
       const path = g.append('path').datum(d).attr('fill','none').attr('stroke', c)
         .attr('stroke-width', 2).attr('d', line);
       const len = path.node().getTotalLength();
@@ -62,7 +66,6 @@ function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '
         .transition().duration(900).ease(d3.easeQuadOut).attr('stroke-dashoffset', 0);
     });
 
-    // X label
     g.append('text').attr('x', iW / 2).attr('y', iH + 26)
       .attr('fill', '#444').attr('font-size', '0.52rem').attr('font-family', 'Orbitron, monospace')
       .attr('text-anchor', 'middle').text('DISTANCE (m)');
@@ -71,8 +74,93 @@ function TelemetryChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '
   return <svg ref={svgRef} style={{ display: 'block', width: '100%' }} />;
 }
 
-// ── Main Page ─────────────────────────────────────────────────────
+// ── D3 Scatter Chart for Race Pace ──────────────────────────────────────────
+function RacePaceChart({ data1 = [], data2 = [], color1 = '#E10600', color2 = '#3671C6' }) {
+  const svgRef = useRef();
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || (!data1.length && !data2.length)) return;
+
+    const w      = el.parentElement.offsetWidth;
+    const h      = 300;
+    const margin = { top: 20, right: 12, bottom: 40, left: 50 };
+    const iW     = w - margin.left - margin.right;
+    const iH     = h - margin.top  - margin.bottom;
+
+    const all = [...data1, ...data2];
+    if (!all.length) return;
+
+    const svg = d3.select(el).attr('width', w).attr('height', h);
+    svg.selectAll('*').remove();
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleLinear().domain([0, d3.max(all, d => d.lap)]).range([0, iW]);
+    // Limit Y axis to mostly normal lap times (eliminate huge SC outliers at the top edge)
+    const medianTime = d3.median(all, d => d.time_s);
+    const yMin = d3.min(all, d => d.time_s) - 1;
+    const yMax = medianTime * 1.15; // Cut off anything 15% slower than median to keep zoom tight
+    const y = d3.scaleLinear().domain([yMax, yMin]).nice().range([iH, 0]); // Invert so faster (lower time) is at the TOP!
+
+    g.append('g')
+      .call(d3.axisLeft(y).tickSize(-iW).tickFormat(d => `${Math.floor(d/60)}:${(d%60).toFixed(1).padStart(4,'0')}`))
+      .selectAll('line').attr('stroke', 'rgba(255,255,255,0.04)')
+      .select(function() { return this.parentNode; })
+      .select('.domain').remove();
+
+    const axisStyle = sel => {
+      sel.selectAll('text').attr('fill', '#666').attr('font-size', '0.55rem').attr('font-family', 'monospace');
+      sel.selectAll('.domain, line').attr('stroke', '#2a2a2a');
+    };
+    g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(10)).call(axisStyle);
+    g.append('g').call(d3.axisLeft(y).ticks(6).tickFormat(d => `${Math.floor(d/60)}:${(d%60).toFixed(1).padStart(4,'0')}`)).call(axisStyle);
+
+    // X label
+    g.append('text').attr('x', iW / 2).attr('y', iH + 32)
+      .attr('fill', '#555').attr('font-size', '0.55rem').attr('font-family', 'Orbitron, monospace')
+      .attr('text-anchor', 'middle').text('LAP NUMBER');
+
+    // Scatter points
+    const drawScatter = (data, baseColor) => {
+      // Filter out laps outside our tight Y zoom
+      const valid = data.filter(d => d.time_s <= yMax);
+      
+      const dots = g.selectAll('circle.d')
+        .data(valid).enter()
+        .append('circle')
+        .attr('cx', d => x(d.lap))
+        .attr('cy', d => y(d.time_s))
+        .attr('r', 0)
+        .attr('fill', d => COMPOUND_COLORS[d.compound] || baseColor)
+        .attr('stroke', baseColor)
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.85);
+
+      dots.transition().duration(800).delay((d,i) => i * 15).ease(d3.easeElasticOut).attr('r', 3.5);
+
+      // Connect lines to show stints
+      const line = d3.line().x(d => x(d.lap)).y(d => y(d.time_s));
+      g.append('path')
+        .datum(valid)
+        .attr('fill', 'none')
+        .attr('stroke', baseColor)
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.4)
+        .attr('d', line);
+    };
+
+    drawScatter(data1, color1);
+    drawScatter(data2, color2);
+
+  }, [data1, data2, color1, color2]);
+
+  return <svg ref={svgRef} style={{ display: 'block', width: '100%' }} />;
+}
+
+
+// ── Main Page ───────────────────────────────────────────────────────────────
 export default function HeadToHead() {
+  const [mode,    setMode]    = useState('quali'); // 'quali' | 'race'
   const [year,    setYear]    = useState(2024);
   const [round,   setRound]   = useState(1);
   const [driver1, setDriver1] = useState('');
@@ -88,7 +176,6 @@ export default function HeadToHead() {
 
   useEffect(() => { fetchResults(); }, [year, round]);
 
-  // Set default drivers when results load
   useEffect(() => {
     if (results?.length >= 2 && !driver1) {
       setDriver1(results[0]?.driver_code || '');
@@ -102,8 +189,9 @@ export default function HeadToHead() {
     setCompError(null);
     setCompData(null);
     try {
+      const endpoint = mode === 'quali' ? 'telemetry-compare' : 'race-pace';
       const res = await fetch(
-        `${API_BASE}/api/historical/telemetry-compare?year=${year}&round=${round}&driver1=${driver1}&driver2=${driver2}`,
+        `${API_BASE}/api/historical/${endpoint}?year=${year}&round=${round}&driver1=${driver1}&driver2=${driver2}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -116,18 +204,49 @@ export default function HeadToHead() {
     }
   };
 
+  // Clear data when mode changes so user knows they need to fetch again
+  useEffect(() => { setCompData(null); setCompError(null); }, [mode]);
+
   const d1Color = getTeamColor(results?.find(r => r.driver_code === driver1)?.team);
   const d2Color = getTeamColor(results?.find(r => r.driver_code === driver2)?.team);
-  const d1Tel   = compData?.[driver1]?.telemetry || [];
-  const d2Tel   = compData?.[driver2]?.telemetry || [];
 
   return (
     <PageTransition>
-      <title>APEX | Telemetry Intelligence</title>
+      <title>APEX | {mode === 'quali' ? 'Telemetry' : 'Race Pace'} Intelligence</title>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: '1.2rem', marginBottom: 4 }}>Telemetry Intelligence</h1>
-        <p style={{ color: '#555', fontSize: '0.8rem' }}>Compare qualifying fastest-lap telemetry between any two drivers, 2018–2025.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: '1.2rem', marginBottom: 4 }}>Compare Analyzer</h1>
+          <p style={{ color: '#555', fontSize: '0.8rem' }}>Deep-dive into 2018–2025 performance data.</p>
+        </div>
+        
+        {/* Mode Toggle */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 4 }}>
+          <button
+            onClick={() => setMode('quali')}
+            style={{
+              background: mode === 'quali' ? '#007FFF' : 'transparent',
+              color: mode === 'quali' ? '#fff' : '#666',
+              border: 'none', padding: '6px 16px', borderRadius: 20,
+              fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.3s ease'
+            }}
+          >
+            QUALIFYING LAP
+          </button>
+          <button
+            onClick={() => setMode('race')}
+            style={{
+              background: mode === 'race' ? '#007FFF' : 'transparent',
+              color: mode === 'race' ? '#fff' : '#666',
+              border: 'none', padding: '6px 16px', borderRadius: 20,
+              fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.3s ease'
+            }}
+          >
+            RACE PACE
+          </button>
+        </div>
       </div>
 
       {/* Control deck */}
@@ -180,7 +299,7 @@ export default function HeadToHead() {
           disabled={!driver1 || !driver2 || driver1 === driver2 || comparing}
           style={{ height: 38, fontSize: '0.65rem', letterSpacing: '0.12em' }}
         >
-          {comparing ? 'LOADING...' : 'COMPARE'}
+          {comparing ? 'LOADING...' : 'ANALYZE'}
         </button>
       </div>
 
@@ -197,15 +316,12 @@ export default function HeadToHead() {
         </div>
       )}
 
-      {/* Results */}
+      {/* Loading */}
       {comparing && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0', gap: 16 }}>
           <div className="apex-spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
           <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.55rem', color: '#444', letterSpacing: '0.2em', animation: 'breathe 2s ease-in-out infinite' }}>
-            EXTRACTING TELEMETRY FROM FASTF1...
-          </div>
-          <div style={{ fontSize: '0.72rem', color: '#333', fontFamily: 'Titillium Web' }}>
-            This might take 30–60 seconds as telemetry is fetched from FastF1 servers.
+            EXTRACTING {mode === 'quali' ? 'TELEMETRY' : 'RACE LAPS'} FROM FASTF1...
           </div>
         </div>
       )}
@@ -213,55 +329,93 @@ export default function HeadToHead() {
       {compError && !comparing && (
         <div className="panel" style={{ borderTop: '2px solid #E10600', textAlign: 'center', padding: '36px 24px' }}>
           <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#E10600', letterSpacing: '0.15em', marginBottom: 8 }}>
-            TELEMETRY EXTRACTION FAILED
+            EXTRACTION FAILED
           </div>
           <div style={{ fontSize: '0.75rem', color: '#555', fontFamily: 'Titillium Web' }}>{compError}</div>
         </div>
       )}
 
+      {/* Analysis Results */}
       {compData && !comparing && (
         <div style={{ display: 'grid', gap: 18 }}>
-          {/* Lap times */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {[{ code: driver1, color: d1Color }, { code: driver2, color: d2Color }].map(({ code, color }) => {
-              const lt = compData[code]?.lap_time;
-              return (
-                <div key={code} className="panel" style={{ textAlign: 'center', borderTop: `2px solid ${color}` }}>
-                  <div style={{ fontFamily: 'Orbitron', fontSize: '0.6rem', color, letterSpacing: '0.15em', marginBottom: 8 }}>{code}</div>
-                  <div style={{ fontFamily: 'Orbitron', fontSize: '1.6rem', fontWeight: 800, color: '#fff' }}>
-                    {lt ? `${Math.floor(lt/60)}:${(lt%60).toFixed(3).padStart(6,'0')}` : '--'}
-                  </div>
-                  <div style={{ fontFamily: 'Titillium Web', fontSize: '0.65rem', color: '#555', marginTop: 4 }}>FASTEST LAP</div>
+          
+          {mode === 'quali' ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {[{ code: driver1, color: d1Color }, { code: driver2, color: d2Color }].map(({ code, color }) => {
+                  const lt = compData[code]?.lap_time;
+                  return (
+                    <div key={code} className="panel" style={{ textAlign: 'center', borderTop: `2px solid ${color}` }}>
+                      <div style={{ fontFamily: 'Orbitron', fontSize: '0.6rem', color, letterSpacing: '0.15em', marginBottom: 8 }}>{code}</div>
+                      <div style={{ fontFamily: 'Orbitron', fontSize: '1.6rem', fontWeight: 800, color: '#fff' }}>
+                        {lt ? `${Math.floor(lt/60)}:${(lt%60).toFixed(3).padStart(6,'0')}` : '--'}
+                      </div>
+                      <div style={{ fontFamily: 'Titillium Web', fontSize: '0.65rem', color: '#555', marginTop: 4 }}>FASTEST LAP</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="panel">
+                <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  SPEED TRACE (km/h)
+                  <span style={{ fontWeight: 400, fontSize: '0.6rem' }}>
+                    <span style={{ color: d1Color }}>━━ {driver1}</span>
+                    {'  '}
+                    <span style={{ color: d2Color }}>━━ {driver2}</span>
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <TelemetryChart 
+                  data1={compData[driver1]?.telemetry} 
+                  data2={compData[driver2]?.telemetry} 
+                  color1={d1Color} color2={d2Color} yKey="speed" 
+                />
+              </div>
 
-          {/* Speed trace */}
-          <div className="panel">
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              SPEED TRACE (km/h)
-              <span style={{ fontWeight: 400, fontSize: '0.6rem' }}>
-                <span style={{ color: d1Color }}>━━ {driver1}</span>
-                {'  '}
-                <span style={{ color: d2Color }}>━━ {driver2}</span>
-              </span>
-            </div>
-            <TelemetryChart data1={d1Tel} data2={d2Tel} color1={d1Color} color2={d2Color} yKey="speed" />
-          </div>
+              <div className="panel">
+                <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  THROTTLE (%)
+                </div>
+                <TelemetryChart 
+                  data1={compData[driver1]?.telemetry} 
+                  data2={compData[driver2]?.telemetry} 
+                  color1={d1Color} color2={d2Color} yKey="throttle" maxY={105} 
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Race Pace Legend */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 4 }}>
+                {Object.entries(COMPOUND_COLORS).map(([name, col]) => (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: col, border: '1px solid #444' }} />
+                    <span style={{ fontSize: '0.55rem', fontFamily: 'Orbitron', color: '#888' }}>{name}</span>
+                  </div>
+                ))}
+              </div>
 
-          {/* Throttle */}
-          <div className="panel">
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              THROTTLE (%)
-              <span style={{ fontWeight: 400, fontSize: '0.6rem' }}>
-                <span style={{ color: d1Color }}>━━ {driver1}</span>
-                {'  '}
-                <span style={{ color: d2Color }}>━━ {driver2}</span>
-              </span>
-            </div>
-            <TelemetryChart data1={d1Tel} data2={d2Tel} color1={d1Color} color2={d2Color} yKey="throttle" maxY={105} />
-          </div>
+              <div className="panel">
+                <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  RACE DEGRADATION MAP
+                  <span style={{ fontWeight: 400, fontSize: '0.6rem' }}>
+                    <span style={{ color: d1Color }}>━━ {driver1}</span>
+                    {'  '}
+                    <span style={{ color: d2Color }}>━━ {driver2}</span>
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.7rem', color: '#555', marginBottom: 12 }}>
+                  Higher placement = Faster Lap. Compares raw lap times excluding extreme outliers (like SC laps).
+                </p>
+                <RacePaceChart 
+                  data1={compData[driver1] || []} 
+                  data2={compData[driver2] || []} 
+                  color1={d1Color} color2={d2Color} 
+                />
+              </div>
+            </>
+          )}
+
         </div>
       )}
 
@@ -269,9 +423,6 @@ export default function HeadToHead() {
         <div className="panel" style={{ textAlign: 'center', padding: '60px 24px' }}>
           <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#333', letterSpacing: '0.2em', marginBottom: 8 }}>
             SELECT SEASON, EVENT AND TWO DRIVERS
-          </div>
-          <div style={{ fontFamily: 'Titillium Web', fontSize: '0.75rem', color: '#3a3a3a' }}>
-            Then hit Compare to extract qualifying telemetry
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ const LINKS = [
   { to: '/dashboard',    icon: '◼', label: 'Dashboard'    },
   { to: '/live',         icon: '◉', label: 'Live Timing'  },
   { to: '/strategy',     icon: '◈', label: 'Strategy'     },
-  { to: '/h2h',          icon: '⇄', label: 'Head to Head' },
+  { to: '/h2h',          icon: '⇄', label: 'Compare' },
   { to: '/standings',    icon: '▲', label: 'Standings'    },
   { to: '/calendar',     icon: '◷', label: 'Calendar'     },
   { to: '/circuit',      icon: '○', label: 'Circuits'     },

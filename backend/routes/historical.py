@@ -40,6 +40,13 @@ async def get_telemetry_compare(year: int, round: int, driver1: str, driver2: st
     return data
 
 
+@router.get('/race-pace')
+async def get_race_pace(year: int, round: int, driver1: str, driver2: str, user=Depends(require_auth)):
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, ff1.get_race_pace_comparison, year, round, driver1, driver2)
+    return data
+
+
 @router.get('/drivers')
 async def get_drivers(user=Depends(require_auth)):
     loop = asyncio.get_event_loop()
