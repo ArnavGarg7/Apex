@@ -21,11 +21,16 @@ def simulate_championship(year: int, remaining_races: int = 5, iterations: int =
     def calculate_base_pace(item_list):
         pace = {}
         for idx, item in enumerate(item_list):
-            # The higher the current position and more wins, the higher the weight
-            # Points give the baseline.
-            base_wt = max(0, float(item.get('points', 0))) + (item.get('wins', 0) * 15)
-            # Add a slight randomized skew based on standing position
-            pace[item.get('driver_code', item.get('team_name', f'UNK_{idx}'))] = base_wt + (100 / (item.get('position', len(item_list)) + 0.1))
+            points = float(item.get('points', 0))
+            wins = item.get('wins', 0)
+            position = item.get('position', len(item_list))
+            
+            # Base pace of 1000 for everyone. Points and standings add a slight advantage.
+            # This ensures random variance (0.8 - 1.2) creates massive overlap between all drivers,
+            # allowing realistic unpredictable race outcomes instead of deterministic sorting.
+            pace_score = 1000 + (points * 0.5) + (wins * 10) + ((25 - position) * 2)
+            
+            pace[item.get('driver_code', item.get('team_name', f'UNK_{idx}'))] = pace_score
         return pace
 
     drv_pace = calculate_base_pace(drivers)
