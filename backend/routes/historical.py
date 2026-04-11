@@ -96,10 +96,9 @@ async def get_driver_bio(driver_id: str, name: str = "", user=Depends(require_au
         bio_cache[driver_id] = result
         return result
     except Exception as e:
-        error_result = {"bio": f"Could not generate bio: {e}", "legacy_score": 50}
-        # Do not cache hard errors, so they can retry later, unless you want to throttle
-        # We will cache a simple rate limit msg for a short time, though a dict doesn't have expiry
-        # Let's not cache failures so refreshing can retry
+        error_result = {"bio": f"{name} is a Formula 1 driver. Detailed AI biography is currently delayed due to F1 data link limits (API quota).", "legacy_score": 70}
+        # Cache the fallback so we don't keep hitting the 429 limit on this driver
+        bio_cache[driver_id] = error_result
         return error_result
 
 
