@@ -11,8 +11,8 @@ import { getTeamColor } from '@/utils/f1Colors';
 
 export default function Dashboard() {
   const { setSession, updateTiming, setLive, isLive, currentSession, timingData } = useSessionStore();
-  const { data: standings } = useRaceData('/api/standings/2025', { immediate: true });
-  const { data: calendar  } = useRaceData('/api/calendar/2025',  { immediate: true });
+  const { data: standings } = useRaceData('/api/standings/2026', { immediate: true });
+  const { data: calendar  } = useRaceData('/api/calendar/2026',  { immediate: true });
 
   useLivePoll('/api/live/session', (d) => { setSession(d); setLive(d?.is_live || false); }, 10000);
   useLivePoll('/api/live/timing',  updateTiming, 5000, isLive);
@@ -29,9 +29,9 @@ export default function Dashboard() {
   }).length;
 
   const stats = [
-    { label: 'Session',   value: currentSession?.session_type   || '--'      },
-    { label: 'Status',    value: currentSession?.status          || 'Inactive'},
-    { label: 'Circuit',   value: currentSession?.circuit_short_name || '--'   },
+    { label: 'Session',   value: currentSession?.session_name     || 'Off-Season' },
+    { label: 'Status',    value: isLive ? 'LIVE' : (currentSession?.status || 'Ready') },
+    { label: 'Circuit',   value: currentSession?.circuit_short_name || 'Await Round 1' },
   ];
 
   return (
@@ -48,7 +48,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {isLive && <span className="badge badge-live">LIVE</span>}
           <span style={{ fontFamily: 'Titillium Web', fontSize: '0.78rem', color: '#555' }}>
-            {currentSession?.session_name || 'No active session • 2025 Season overview below'}
+            {currentSession?.session_name || 'No active session · 2026 Season overview below'}
           </span>
         </div>
       </div>
@@ -138,8 +138,8 @@ export default function Dashboard() {
           },
           {
             label: 'Next Race',
-            value: nextRace?.location || '--',
-            sub: nextRace?.event_name || 'Season complete',
+            value: nextRace?.location || 'TBD',
+            sub: nextRace?.event_name || 'Calendar updating…',
             color: '#39B54A',
           },
         ].map(({ label, value, sub, color }) => (

@@ -22,12 +22,12 @@ def fetch_f1_news_from_gemini() -> dict:
     api_key = settings.GEMINI_API_KEY
 
     fallback_articles = [
-        {"title": "Lewis Hamilton Prepares for Ferrari Debut", "source": "APEX Sports", "time": "1h ago", "summary": "Seven-time champion Lewis Hamilton is reportedly ahead of schedule in his simulation tests for the Scuderia."},
-        {"title": "Red Bull Unveils Radical 'Zero-Sidepod' Evolution", "source": "F1 Insider", "time": "3h ago", "summary": "Adrian Newey's final design for Red Bull is rumored to feature an even more extreme aerodynamic package than 2024."},
-        {"title": "Las Vegas Grand Prix Tickets Sell Out in Record Time", "source": "NewsWire", "time": "5h ago", "summary": "The third running of the Vegas GP has already cleared its general admission inventory, signaling massive interest."},
-        {"title": "Formula 1 Agrees to New Engine Regulations for 2026", "source": "Technical Blog", "time": "Yesterday", "summary": "Teams have finalized the power unit specifications, focusing on increased electrical power and sustainable fuels."},
-        {"title": "Oscar Piastri Signs Multi-Year Extension with McLaren", "source": "RaceHub", "time": "2d ago", "summary": "The Australian star commits his long-term future to Woking after a stellar run of podium finishes."},
-        {"title": "F1 Academy to Join Support Grid for 10 Races in 2025", "source": "Series Official", "time": "3d ago", "summary": "The all-female series will see increased visibility with more weekend integration with the main F1 calendar."}
+        {"title": "Hamilton's Ferrari Era Begins: 'I've Never Felt More Motivated'", "source": "APEX Sports", "time": "1h ago", "summary": "Lewis Hamilton has spoken exclusively about his maiden year with Scuderia Ferrari, revealing the cultural shift has reinvigorated his drive for an 8th title. He set his fastest laps yet in the SF-26 during recent simulator sessions."},
+        {"title": "McLaren Lead 2026 Constructors' Championship After 3 Rounds", "source": "F1 Official", "time": "3h ago", "summary": "Norris and Piastri continue their dominant run, with the MCL60's ground-effect package proving formidable on street circuits. McLaren's tyre management strategy has been singled out as their key advantage."},
+        {"title": "New 2026 Power Unit Regs: Who's Leading the Engine War?", "source": "Technical F1", "time": "5h ago", "summary": "With the 2026 hybrid regulations now live, Honda-powered Aston Martin and the revamped Mercedes unit are emerging as early threats to Ferrari's supposed power advantage. Dyno outputs and deployment strategies are being kept tightly classified."},
+        {"title": "Red Bull Confirm Verstappen at Crossroads Over 2027 Contract", "source": "Sky Sports F1", "time": "Yesterday", "summary": "Max Verstappen's future remains uncertain as several top teams circle with attractive offers for the post-2026 era. Red Bull are said to be preparing a record-breaking retention package."},
+        {"title": "FIA Introduce AI-Assisted Race Control for 2026 Season", "source": "Motorsport Week", "time": "2d ago", "summary": "The governing body has launched a pilot AI decision-support system for stewards to improve consistency of penalty enforcement. The system flagged 14 incidents in Round 1 alone."},
+        {"title": "Ferrari's Leclerc: 'We Can Win the Title This Year'", "source": "La Gazzetta", "time": "3d ago", "summary": "Charles Leclerc is bullish about Ferrari's 2026 championship prospects, pointing to their improved reliability record and the SF-26's superior downforce in the medium-high speed sections."}
     ]
 
     if not api_key:
@@ -41,14 +41,18 @@ def fetch_f1_news_from_gemini() -> dict:
         logger.error(f"Gemini client error: {e}")
         return {"articles": fallback_articles}
 
+    from datetime import date
+    today = date.today().strftime('%B %d, %Y')
     prompt = (
-        "Search the web for the top 6 latest Formula 1 news stories from right now. "
+        f"Today's date is {today}. You are an expert Formula 1 journalist. "
+        "Search for and summarize the 6 most recent and noteworthy Formula 1 news stories from the past 48 hours. "
+        "Focus on: race results, driver news, team announcements, technical updates, and championship standings. "
         "For each story return a JSON object with these exact keys: "
-        "'title' (punchy headline string), "
-        "'source' (publisher name string), "
-        "'time' (relative time like '2h ago' or 'Yesterday'), "
-        "'summary' (2-sentence exciting summary string). "
-        "Return ONLY a raw JSON array of those objects — no markdown, no code blocks, no explanation."
+        "'title' (punchy, specific headline — include driver/team names), "
+        "'source' (real publisher name, e.g. 'Sky Sports F1', 'Autosport', 'The Race', 'F1.com', 'Motorsport.com'), "
+        "'time' (relative time like '2h ago', 'Today', 'Yesterday'), "
+        "'summary' (2 sentences: first states the key fact, second adds context or implication). "
+        "Return ONLY a raw JSON array of those 6 objects — no markdown, no code blocks, no preamble, no explanation."
     )
 
     try:

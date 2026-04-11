@@ -189,32 +189,40 @@ CIRCUIT_GP_MAP = {
 
 
 def get_circuit_history(circuit_id: str) -> list:
-    """Get race winners from last 5 years at a circuit."""
+    """Get race winners from last 6 years at a circuit."""
     gp_name = CIRCUIT_GP_MAP.get(circuit_id.lower(), circuit_id)
     import datetime
     current_year = datetime.date.today().year
     results = []
-    for year in range(current_year - 1, current_year - 7, -1):
+    for year in range(current_year - 1, current_year - 8, -1):
         try:
             schedule = fastf1.get_event_schedule(year)
+            # Try broad match across EventName, Country, and Location
             event = schedule[
                 schedule['EventName'].str.contains(gp_name, case=False, na=False) |
-                schedule['Country'].str.contains(gp_name, case=False, na=False)
+                schedule['Country'].str.contains(gp_name, case=False, na=False) |
+                schedule['Location'].str.contains(gp_name, case=False, na=False)
             ]
             if event.empty:
                 continue
             round_num = int(event.iloc[0]['RoundNumber'])
+            # Skip pre-season testing
+            if round_num == 0:
+                continue
             session = fastf1.get_session(year, round_num, 'R')
             session.load(laps=False, telemetry=False, weather=False)
+            if session.results.empty:
+                continue
             winner = session.results.iloc[0]
             results.append({
                 'year':   year,
-                'winner': winner.get('FullName', ''),
-                'team':   winner.get('TeamName', ''),
+                'winner': str(winner.get('FullName', 'Unknown')),
+                'team':   str(winner.get('TeamName', 'Unknown')),
             })
         except Exception:
             continue
     return results
+
 
 
 # ─── Circuit Topology (for 2D SVG rendering) ─────────────────────────────────

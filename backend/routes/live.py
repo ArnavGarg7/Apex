@@ -13,19 +13,43 @@ router = APIRouter()
 
 @router.get('/session')
 async def get_current_session(user=Depends(require_auth)):
-    """Current/latest session status."""
+    """Current/latest session status. Returns off-season state when no active session."""
+    from datetime import datetime, timezone, timedelta
     try:
         sessions = await openf1.get_session_status()
         if not sessions:
-            return {'status': 'Inactive', 'is_live': False, 'data_delay_seconds': 30}
+            return {'status': 'Off-Season', 'is_live': False, 'data_delay_seconds': 30}
         s = sessions[-1]
+        is_live = s.get('session_status', '') in ('Started',)
+
+        # Check if the session date is more than 6 hours in the past
+        # If so, treat it as off-season rather than showing stale labels
+        session_date_str = s.get('date_end') or s.get('date_start') or ''
+        if session_date_str:
+            try:
+                # OpenF1 dates are UTC ISO strings
+                session_end = datetime.fromisoformat(session_date_str.replace('Z', '+00:00'))
+                stale = (datetime.now(timezone.utc) - session_end) > timedelta(hours=6)
+                if stale and not is_live:
+                    return {
+                        'status':              'Off-Season',
+                        'is_live':             False,
+                        'data_delay_seconds':  30,
+                        'country_name':        None,
+                        'session_name':        None,
+                        'circuit_short_name':  None,
+                    }
+            except Exception:
+                pass  # If date parsing fails, fall through to normal response
+
         return {
             **s,
-            'is_live': s.get('session_status', '') in ('Started', 'Started'),
+            'is_live': is_live,
             'data_delay_seconds': 30,
         }
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
 
 
 @router.get('/timing')

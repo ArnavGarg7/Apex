@@ -9,9 +9,9 @@ export default function Navbar() {
   const { currentSession, isLive } = useSessionStore();
   const { user } = useUserStore();
 
-  const sessionLabel = currentSession
-    ? `${currentSession.country_name || ''} — ${currentSession.session_name || ''}`
-    : 'NO SESSION';
+  const sessionLabel = currentSession?.country_name && currentSession?.session_name
+    ? `${currentSession.country_name} — ${currentSession.session_name}`
+    : null;
 
   return (
     <nav
@@ -47,9 +47,11 @@ export default function Navbar() {
           <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#555', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
             F1 Intelligence
           </span>
-          <span style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.65rem', color: isLive ? '#39B54A' : '#555', letterSpacing: '0.05em' }}>
-            {sessionLabel}
-          </span>
+          {sessionLabel && (
+            <span style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.65rem', color: isLive ? '#39B54A' : '#888', letterSpacing: '0.05em' }}>
+              {sessionLabel}
+            </span>
+          )}
         </div>
       </Link>
 
