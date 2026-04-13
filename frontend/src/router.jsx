@@ -14,6 +14,7 @@ import News         from '@/pages/News';
 import RadioSentiment from '@/pages/RadioSentiment';
 import Encyclopedia from '@/pages/Encyclopedia';
 import Championship from '@/pages/Championship';
+import Teammates    from '@/pages/Teammates';
 import Auth         from '@/pages/Auth';
 import PageShell    from '@/components/layout/PageShell';
 
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
       { path: '/h2h',        element: <HeadToHead /> },
       { path: '/standings',  element: <Standings /> },
       { path: '/championship', element: <Championship /> },
+      { path: '/teammates',    element: <Teammates /> },
       { path: '/calendar',   element: <Calendar /> },
       { path: '/circuit',    element: <Circuit /> },
       { path: '/weather',    element: <Weather /> },

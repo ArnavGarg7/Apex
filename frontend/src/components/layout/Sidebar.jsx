@@ -6,15 +6,16 @@ const LINKS = [
   { to: '/dashboard',    icon: '◼', label: 'Dashboard'    },
   { to: '/live',         icon: '◉', label: 'Live Timing'  },
   { to: '/strategy',     icon: '◈', label: 'Strategy'     },
-  { to: '/h2h',          icon: '⇄', label: 'Compare' },
-  { to: '/standings',    icon: '▲', label: 'Standings'    },
-  { to: '/championship', icon: '❂', label: 'Championship' },
-  { to: '/calendar',     icon: '◷', label: 'Calendar'     },
-  { to: '/circuit',      icon: '○', label: 'Circuits'     },
-  { to: '/weather',      icon: '☁', label: 'Weather'      },
-  { to: '/news',         icon: '◎', label: 'AI News'      },
-  { to: '/radio',        icon: '»', label: 'Race Control' },
-  { to: '/encyclopedia', icon: '⊞', label: 'Encyclopedia' },
+  { to: '/h2h',          icon: '⇄', label: 'Compare'      },
+  { to: '/standings',    icon: '▲', label: 'Standings'     },
+  { to: '/championship', icon: '❂', label: 'Championship'  },
+  { to: '/teammates',    icon: '⚔', label: 'Teammates'     },
+  { to: '/calendar',     icon: '◷', label: 'Calendar'      },
+  { to: '/circuit',      icon: '○', label: 'Circuits'      },
+  { to: '/weather',      icon: '☁', label: 'Weather'       },
+  { to: '/news',         icon: '◎', label: 'AI News'       },
+  { to: '/radio',        icon: '»', label: 'Race Control'  },
+  { to: '/encyclopedia', icon: '⊞', label: 'Encyclopedia'  },
 ];
 
 export default function Sidebar() {
@@ -124,7 +125,7 @@ export default function Sidebar() {
           transition: 'opacity 0.3s ease',
         }}>
           <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#555', letterSpacing: '0.15em' }}>
-            APEX v2.0 — F1 INTELLIGENCE
+            APEX v3.0 — F1 INTELLIGENCE
           </span>
         </div>
       )}

@@ -433,3 +433,140 @@ def get_all_constructors() -> list:
     except Exception as e:
         logger.error(f"Ergast constructors error: {e}")
         return []
+
+
+# ─── Teammate Battle ──────────────────────────────────────────────────────────
+
+def get_teammate_battle(year: int) -> list:
+    """
+    For each constructor that season, returns head-to-head statistics between
+    the two main drivers: qualifying gap average, qualifying wins, race wins,
+    points totals. Uses Ergast for the season roster + FastF1 for session outcomes.
+    """
+    import requests
+
+    try:
+        # 1. Fetch all race results round-by-round from Ergast Jolpica mirror
+        url = f"https://api.jolpi.ca/ergast/f1/{year}/results.json?limit=1000"
+        resp = requests.get(url, timeout=15).json()
+        race_list = resp.get('MRData', {}).get('RaceTable', {}).get('Races', [])
+    except Exception as e:
+        logger.error(f"Ergast race results error ({year}): {e}")
+        return []
+
+    # Build per-team lists of drivers and their race finish positions
+    team_data: dict = {}  # team_name -> {driver_code: {wins, points, rounds}}
+
+    for race in race_list:
+        results = race.get('Results', [])
+        for r in results:
+            constructor = r.get('Constructor', {}).get('name', 'Unknown')
+            driver = r.get('Driver', {})
+            code = driver.get('code') or driver.get('driverId', '???')
+            name = f"{driver.get('givenName','')} {driver.get('familyName','')}".strip()
+            try:
+                pts = float(r.get('points', 0))
+                grid = int(r.get('grid', 0))
+                pos = int(r.get('position', 99))
+                status = r.get('status', '')
+                won = (pos == 1 and 'Finished' in status or pos == 1)
+            except Exception:
+                pts, grid, pos, won = 0, 0, 99, False
+
+            if constructor not in team_data:
+                team_data[constructor] = {}
+            if code not in team_data[constructor]:
+                team_data[constructor][code] = {
+                    'name': name, 'code': code, 'wins': 0, 'points': 0.0, 'rounds': 0
+                }
+            team_data[constructor][code]['points'] += pts
+            team_data[constructor][code]['wins'] += (1 if won else 0)
+            team_data[constructor][code]['rounds'] += 1
+
+    # 2. Fetch qualifying results for gap analysis
+    try:
+        qual_url = f"https://api.jolpi.ca/ergast/f1/{year}/qualifying.json?limit=1000"
+        qual_resp = requests.get(qual_url, timeout=15).json()
+        qual_rounds = qual_resp.get('MRData', {}).get('RaceTable', {}).get('Races', [])
+    except Exception as e:
+        logger.warning(f"Ergast qualifying error ({year}): {e}")
+        qual_rounds = []
+
+    # Build team->driver->Q3/Q2/Q1 times per round for gap calculation
+    qual_team: dict = {}  # team -> {round_num: {code: best_time_s}}
+
+    for race in qual_rounds:
+        rnd = race.get('round', '0')
+        for qr in race.get('QualifyingResults', []):
+            constructor = qr.get('Constructor', {}).get('name', 'Unknown')
+            driver = qr.get('Driver', {})
+            code = driver.get('code') or driver.get('driverId', '???')
+            # Pick best time across Q3/Q2/Q1
+            best_s = None
+            for key in ('Q3', 'Q2', 'Q1'):
+                t = qr.get(key, '')
+                if t and ':' in t:
+                    try:
+                        parts = t.split(':')
+                        s = float(parts[0]) * 60 + float(parts[1])
+                        if best_s is None or s < best_s:
+                            best_s = s
+                    except Exception:
+                        pass
+            if best_s is not None:
+                if constructor not in qual_team:
+                    qual_team[constructor] = {}
+                if rnd not in qual_team[constructor]:
+                    qual_team[constructor][rnd] = {}
+                qual_team[constructor][rnd][code] = best_s
+
+    # 3. Assemble final output — one entry per constructor with exactly 2 drivers
+    output = []
+    for team, drivers in team_data.items():
+        driver_list = sorted(drivers.values(), key=lambda d: d['points'], reverse=True)
+        if len(driver_list) < 2:
+            continue  # Skip teams where we can't form a true H2H pair
+        d1, d2 = driver_list[0], driver_list[1]
+
+        # Qualifying gap analysis
+        gaps = []
+        quali_wins_d1 = 0
+        quali_wins_d2 = 0
+        team_rounds = qual_team.get(team, {})
+        for rnd, times in team_rounds.items():
+            t1 = times.get(d1['code'])
+            t2 = times.get(d2['code'])
+            if t1 and t2:
+                gap = round(t1 - t2, 3)  # positive means d1 slower
+                gaps.append(gap)
+                if t1 < t2:
+                    quali_wins_d1 += 1
+                else:
+                    quali_wins_d2 += 1
+
+        avg_gap = round(sum(gaps) / len(gaps), 3) if gaps else 0.0
+
+        output.append({
+            'team': team,
+            'driver1': {
+                'code':   d1['code'],
+                'name':   d1['name'],
+                'wins':   d1['wins'],
+                'points': d1['points'],
+                'quali_wins': quali_wins_d1,
+            },
+            'driver2': {
+                'code':   d2['code'],
+                'name':   d2['name'],
+                'wins':   d2['wins'],
+                'points': d2['points'],
+                'quali_wins': quali_wins_d2,
+            },
+            'avg_quali_gap_s': avg_gap,  # negative = d1 faster
+            'rounds_compared': len(gaps),
+        })
+
+    # Sort by combined team points
+    output.sort(key=lambda t: t['driver1']['points'] + t['driver2']['points'], reverse=True)
+    return output
+
