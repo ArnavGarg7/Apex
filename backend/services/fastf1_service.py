@@ -570,3 +570,95 @@ def get_teammate_battle(year: int) -> list:
     output.sort(key=lambda t: t['driver1']['points'] + t['driver2']['points'], reverse=True)
     return output
 
+
+# ─── Race Story Data ───────────────────────────────────────────────────────────
+
+def get_race_story_data(year: int, round_num: int) -> dict:
+    """
+    Extract structured race narrative facts for a given round:
+    winner, top-5, fastest lap, SC laps, DNFs, notable position swings.
+    """
+    try:
+        session = fastf1.get_session(year, round_num, 'R')
+        session.load(laps=True, telemetry=False, weather=False, messages=True)
+
+        if session.results.empty:
+            return {}
+
+        results = session.results
+        winner_row = results.iloc[0]
+        event_name = session.event.get('EventName', f'Round {round_num}')
+        total_laps = int(session.laps['LapNumber'].max()) if not session.laps.empty else 0
+
+        # Top 5
+        top5 = []
+        for _, row in results.head(5).iterrows():
+            pos = _safe_val(row.get('Position'))
+            code = row.get('Abbreviation', '???')
+            if pos is not None:
+                top5.append(f"P{int(pos)} {code}")
+
+        # DNFs
+        dnf_statuses = ['Retired', 'Accident', 'Collision', 'Engine', 'Gearbox',
+                        'Hydraulics', 'Mechanical', 'Power Unit', 'Suspension']
+        dnfs = []
+        for _, row in results.iterrows():
+            status = str(row.get('Status', ''))
+            if any(s.lower() in status.lower() for s in dnf_statuses):
+                dnfs.append(f"{row.get('Abbreviation','?')} ({status})")
+
+        # Fastest lap driver
+        fastest_lap_driver = '—'
+        try:
+            fl = session.laps.pick_fastest()
+            if fl is not None and not fl.empty:
+                fastest_lap_driver = fl.get('Driver', '—')
+        except Exception:
+            pass
+
+        # Safety car laps — look for 'SafetyCar' in track status messages
+        sc_laps = []
+        try:
+            if hasattr(session, 'track_status') and session.track_status is not None:
+                sc_rows = session.track_status[session.track_status['Status'].isin(['4', '5', '6'])]
+                sc_laps = sorted(set(
+                    int(session.laps.loc[session.laps['Time'] >= row['Time'], 'LapNumber'].iloc[0])
+                    for _, row in sc_rows.iterrows()
+                    if not session.laps.loc[session.laps['Time'] >= row['Time']].empty
+                ))
+        except Exception:
+            sc_laps = []
+
+        # Notable position changes (grid vs finish)
+        position_swings = []
+        for _, row in results.iterrows():
+            grid = _safe_val(row.get('GridPosition'))
+            finish = _safe_val(row.get('Position'))
+            code = row.get('Abbreviation', '?')
+            if grid and finish:
+                try:
+                    swing = int(grid) - int(finish)
+                    if swing >= 5:
+                        position_swings.append(f"{code} gained {swing} places (P{int(grid)}→P{int(finish)})")
+                    elif swing <= -5:
+                        position_swings.append(f"{code} lost {abs(swing)} places (P{int(grid)}→P{int(finish)})")
+                except Exception:
+                    pass
+
+        return {
+            'event_name':          event_name,
+            'winner':              str(winner_row.get('FullName', '?')),
+            'winner_team':         str(winner_row.get('TeamName', '?')),
+            'top5':                top5,
+            'dnfs':                dnfs,
+            'fastest_lap_driver':  fastest_lap_driver,
+            'sc_laps':             sc_laps,
+            'total_laps':          total_laps,
+            'notable_overtakes':   '; '.join(position_swings[:4]) if position_swings else '',
+        }
+
+    except Exception as e:
+        logger.error(f"Race story data error ({year} R{round_num}): {e}")
+        return {}
+
+

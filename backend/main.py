@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 # Register routes
-from backend.routes import live, historical, strategy, standings, calendar, circuit, weather, simulate, news, radio, teammates
+from backend.routes import live, historical, strategy, standings, calendar, circuit, weather, simulate, news, radio, teammates, storyteller
 
 app.include_router(live.router,       prefix='/api/live',       tags=['Live Timing'])
 app.include_router(historical.router, prefix='/api/historical', tags=['Historical'])
@@ -55,6 +55,7 @@ app.include_router(simulate.router,   prefix='/api/simulate',   tags=['Simulate'
 app.include_router(news.router,       prefix='/api/news',       tags=['News'])
 app.include_router(radio.router,      prefix='/api/radio',      tags=['Radio'])
 app.include_router(teammates.router,  prefix='/api/teammates',  tags=['Teammates'])
+app.include_router(storyteller.router, prefix='/api/story',     tags=['Storyteller'])
 
 
 @app.get('/api/health', tags=['Health'])

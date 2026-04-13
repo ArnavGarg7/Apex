@@ -1,8 +1,8 @@
-// src/pages/Calendar.jsx
 import { useEffect, useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
 import CountdownTimer from '@/components/shared/CountdownTimer';
+import { RaceStoryInline } from '@/components/shared/RaceStory';
 
 function isRaceWeekend(dateStr) {
   if (!dateStr) return false;
@@ -22,6 +22,7 @@ function formatDate(dateStr) {
 export default function Calendar() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(2025);
+  const [expandedRound, setExpandedRound] = useState(null);
   const { data: events, loading, refetch } = useRaceData(`/api/calendar/${year}`, { immediate: true, deps: [year] });
 
 
@@ -119,12 +120,25 @@ export default function Calendar() {
                   {isNow && <span className="badge badge-live">RACE WEEKEND</span>}
                   {!isPast && !isNow && raceDate && <CountdownTimer targetDate={raceDate} />}
                   {isPast && (
-                    <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.52rem', color: '#333', letterSpacing: '0.1em' }}>
-                      COMPLETED
-                    </span>
+                    <button
+                      onClick={() => setExpandedRound(expandedRound === event.round_number ? null : event.round_number)}
+                      style={{
+                        background: 'transparent', border: '1px solid #2a2a2a',
+                        color: expandedRound === event.round_number ? '#E10600' : '#444',
+                        borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+                        fontFamily: 'Orbitron, monospace', fontSize: '0.48rem', letterSpacing: '0.08em',
+                        transition: 'color 0.2s, border-color 0.2s',
+                      }}
+                    >
+                      {expandedRound === event.round_number ? '▲ STORY' : '▼ STORY'}
+                    </button>
                   )}
                 </div>
               </div>
+              {/* Story expand panel */}
+              {isPast && expandedRound === event.round_number && (
+                <RaceStoryInline year={year} round={event.round_number} />
+              )}
             );
           })}
         </div>

@@ -7,6 +7,7 @@ import { useSessionStore } from '@/store/sessionStore';
 import TimingTable from '@/components/live/TimingTable';
 import MagneticWrapper from '@/components/animations/MagneticWrapper';
 import NextRaceCountdown from '@/components/shared/NextRaceCountdown';
+import RaceStory from '@/components/shared/RaceStory';
 import { getTeamColor } from '@/utils/f1Colors';
 
 export default function Dashboard() {
@@ -151,6 +152,11 @@ export default function Dashboard() {
             </div>
           </MagneticWrapper>
         ))}
+      </div>
+
+      {/* AI Race Storyteller — latest completed race */}
+      <div style={{ marginTop: 20 }}>
+        <RaceStory year={2025} />
       </div>
     </PageTransition>
   );
