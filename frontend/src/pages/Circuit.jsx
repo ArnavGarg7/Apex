@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
+import * as d3 from 'd3';
 
 // Comprehensive list of all F1 circuits with their canonical IDs for FastF1 lookup
 const ALL_CIRCUITS = [
@@ -30,7 +31,7 @@ const ALL_CIRCUITS = [
   { id: 'abu_dhabi',   name: 'Abu Dhabi',    country: 'AE', flag: '🇦🇪' },
 ];
 
-function CircuitSVG({ topology, loading }) {
+function CircuitSVG({ topology, mode, loading }) {
   if (loading) return (
     <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
@@ -43,7 +44,7 @@ function CircuitSVG({ topology, loading }) {
   if (!topology || topology.length === 0) return (
     <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.6rem', color: '#333', letterSpacing: '0.15em' }}>
-        TOPOLOGY UNAVAILABLE
+        TELEMETRY NOT AVAILABLE
       </div>
     </div>
   );
@@ -55,18 +56,39 @@ function CircuitSVG({ topology, loading }) {
   });
   const pw  = Math.max(maxX - minX, maxY - minY) * 0.12;
   const vb  = `${minX - pw} ${minY - pw} ${(maxX - minX) + pw * 2} ${(maxY - minY) + pw * 2}`;
-  const sw  = ((maxX - minX) + pw * 2) / 55;
-  const pts = topology.map(p => `${p.x},${-p.y}`).join(' ');
+  const sw  = ((maxX - minX) + pw * 2) / 60;
+
+  // Scales
+  const speedScale = d3.scaleSequential(d3.interpolateTurbo).domain([70, Math.max(...topology.map(p => p.speed || 0))]);
+  const brakeScale = d3.scaleSequential(d3.interpolateReds).domain([0, 100]);
+  const throttleScale = d3.scaleSequential(d3.interpolateGreens).domain([0, 100]);
+
+  const getColor = (p) => {
+    if (mode === 'speed') return speedScale(p.speed || 0);
+    if (mode === 'brake') return brakeScale(p.brake ? 100 : 0);
+    if (mode === 'throttle') return throttleScale(p.throttle || 0);
+    return '#E10600'; // base layout
+  };
 
   return (
     <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}>
-      <svg viewBox={vb} style={{ width: '100%', maxWidth: 380, display: 'block', filter: 'drop-shadow(0 0 12px rgba(225,6,0,0.45))' }}>
-        {/* Shadow track */}
-        <polyline points={pts} fill="none" stroke="rgba(225,6,0,0.15)" strokeWidth={sw * 2.5} strokeLinejoin="round" strokeLinecap="round" />
-        {/* Main track */}
-        <polyline points={pts} fill="none" stroke="#E10600" strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round" />
-        {/* Highlight */}
-        <polyline points={pts} fill="none" stroke="rgba(255,100,100,0.4)" strokeWidth={sw * 0.4} strokeLinejoin="round" strokeLinecap="round" />
+      <svg viewBox={vb} style={{ width: '100%', maxWidth: 380, display: 'block', filter: 'drop-shadow(0 0 12px rgba(225,6,0,0.25))' }}>
+        {/* Draw background path (faded) */}
+        <polyline points={topology.map(p => `${p.x},${-p.y}`).join(' ')} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={sw * 1.5} strokeLinejoin="round" strokeLinecap="round" />
+        {/* Draw segments for heatmap */}
+        {topology.slice(0, -1).map((p, i) => {
+          const next = topology[i + 1];
+          return (
+            <line
+              key={i}
+              x1={p.x} y1={-p.y}
+              x2={next.x} y2={-next.y}
+              stroke={getColor(p)}
+              strokeWidth={sw}
+              strokeLinecap="round"
+            />
+          );
+        })}
       </svg>
     </div>
   );
@@ -75,10 +97,14 @@ function CircuitSVG({ topology, loading }) {
 // src/pages/Circuit.jsx — Full circuit explorer with rich SVG maps + circuit switcher
 export default function Circuit() {
   const [selected, setSelected] = useState('bahrain');
+  const [mode, setMode] = useState('layout'); // layout | speed | brake | throttle
+
+  // If layout, fast load the topology endpoint. Else, the slower heatmap endpoint.
+  const endpoint = mode === 'layout' ? 'topology' : 'heatmap';
 
   const { data: topology, loading: topoLoading } = useRaceData(
-    `/api/circuit/${selected}/topology`,
-    { immediate: true, deps: [selected] }
+    `/api/circuit/${selected}/${endpoint}`,
+    { immediate: true, deps: [selected, endpoint] }
   );
   const { data: history, loading: histLoading } = useRaceData(
     `/api/circuit/${selected}/history`,
@@ -133,18 +159,49 @@ export default function Circuit() {
             <div className="panel-header" style={{ marginBottom: 0 }}>
               {circuit.flag} {circuit.name.toUpperCase()} CIRCUIT
             </div>
+            
+            {/* Heatmap Mode Toggles */}
+            <div style={{ display: 'flex', gap: 2, background: 'rgba(255,255,255,0.02)', padding: 3, borderRadius: 20 }}>
+              {['layout', 'speed', 'brake', 'throttle'].map(m => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  style={{
+                    background: mode === m ? (m === 'layout' ? '#E10600' : '#444') : 'transparent',
+                    color: mode === m ? '#fff' : '#666',
+                    border: 'none', padding: '4px 10px', borderRadius: 20,
+                    fontFamily: 'Orbitron, monospace', fontSize: '0.48rem', fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.05em'
+                  }}
+                >
+                  {m.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
-          <CircuitSVG key={selected} topology={topology} loading={topoLoading || !topology} />
+          <CircuitSVG key={`${selected}-${mode}`} topology={topology} mode={mode} loading={topoLoading} />
 
           {/* Legend */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 16, height: 3, background: '#E10600', borderRadius: 2, boxShadow: '0 0 6px rgba(225,6,0,0.5)' }} />
-              <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#555' }}>TRACK LAYOUT</span>
+              <div style={{ width: 16, height: 3, background: mode === 'layout' ? '#E10600' : 'rgba(255,255,255,0.2)', borderRadius: 2 }} />
+              <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#555' }}>
+                {mode === 'layout' ? 'TRACK LAYOUT' : `${mode.toUpperCase()} TRACE`}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 16, height: 3, background: 'rgba(225,6,0,0.15)', borderRadius: 2 }} />
-              <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#555' }}>TELEMETRY SOURCE</span>
+               {mode === 'speed' ? (
+                <div style={{ background: 'linear-gradient(90deg, #30123b, #28bbec, #a2fc3c, #fb8022, #7a0403)', width: 60, height: 4, borderRadius: 2 }} />
+               ) : mode === 'brake' ? (
+                <div style={{ background: 'linear-gradient(90deg, #fee5d9, #cb181d)', width: 60, height: 4, borderRadius: 2 }} />
+               ) : mode === 'throttle' ? (
+                <div style={{ background: 'linear-gradient(90deg, #edf8e9, #238b45)', width: 60, height: 4, borderRadius: 2 }} />
+               ) : (
+                <div style={{ width: 16, height: 3, background: 'rgba(225,6,0,0.15)', borderRadius: 2 }} />
+               )}
+              <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.5rem', color: '#555' }}>
+                {mode === 'layout' ? 'TELEMETRY SOURCE' : 'HEATMAP SCALE'}
+              </span>
             </div>
           </div>
         </div>

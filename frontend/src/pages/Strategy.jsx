@@ -8,6 +8,7 @@ import TyreStintBar from '@/components/strategy/TyreStintBar';
 import PitGauge from '@/components/strategy/PitGauge';
 import ShapWaterfall from '@/components/strategy/ShapWaterfall';
 import UndercutSim from '@/components/strategy/UndercutSim';
+import TyreDegTool from '@/components/strategy/TyreDegTool';
 import TyreScene from '@/components/three/TyreScene';
 import CompoundBadge from '@/components/shared/CompoundBadge';
 import DataDelayBadge from '@/components/shared/DataDelayBadge';
@@ -162,6 +163,9 @@ export default function Strategy() {
                   drivers={timingData.map((d) => ({ number: d.driver_number, code: d.driver_code }))}
                 />
               </div>
+
+              {/* Tyre Deg Tool */}
+              <TyreDegTool />
             </>
           ) : (
             <div className="panel" style={{ textAlign: 'center', padding: 48 }}>

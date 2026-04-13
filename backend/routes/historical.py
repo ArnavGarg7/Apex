@@ -106,3 +106,15 @@ async def get_constructors(user=Depends(require_auth)):
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_all_constructors)
     return data
+
+
+@router.get('/tyre-deg')
+async def get_tyre_deg(year: int, round: int, user=Depends(require_auth)):
+    """
+    FP2 long-run tyre degradation analysis. Returns per-compound deg rate (s/lap)
+    and a 1-stop vs 2-stop prediction for the race weekend.
+    """
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, ff1.get_fp2_degradation, year, round)
+    return data
+

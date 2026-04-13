@@ -7,6 +7,7 @@ All functions are synchronous — call via asyncio.run_in_executor() from routes
 import logging
 import fastf1
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -662,3 +663,87 @@ def get_race_story_data(year: int, round_num: int) -> dict:
         return {}
 
 
+def get_circuit_heatmap(circuit_id: str, year: int) -> list:
+    """Fetch telemetry points with speed, brake, throttle for D3 coloring."""
+    import datetime
+    gp_name = CIRCUIT_GP_MAP.get(circuit_id.lower(), circuit_id)
+    try:
+        schedule = fastf1.get_event_schedule(year)
+        event = schedule[
+            schedule['EventName'].str.contains(gp_name, case=False, na=False) |
+            schedule['Country'].str.contains(gp_name, case=False, na=False) |
+            schedule['Location'].str.contains(gp_name, case=False, na=False)
+        ]
+        if event.empty:
+            return []
+            
+        round_num = int(event.iloc[0]['RoundNumber'])
+        session = fastf1.get_session(year, round_num, 'Q')
+        session.load(laps=True, telemetry=True, weather=False, messages=False)
+        
+        fastest_lap = session.laps.pick_fastest()
+        if fastest_lap is None or pd.isna(fastest_lap['LapTime']):
+            return []
+            
+        telemetry = fastest_lap.get_telemetry()
+        # Sample to ~300 points for the heatmap SVG
+        step = max(1, len(telemetry) // 350)
+        sampled = telemetry.iloc[::step]
+        
+        points = []
+        for _, row in sampled.iterrows():
+            points.append({
+                'x': _safe_val(row['X']),
+                'y': _safe_val(row['Y']),
+                'speed': _safe_val(row['Speed']),
+                'brake': _safe_val(row['Brake']),
+                'throttle': _safe_val(row['Throttle'])
+            })
+        return points
+    except Exception as e:
+        logger.error(f"Heatmap error ({circuit_id} {year}): {e}")
+        return []
+
+
+def get_fp2_degradation(year: int, round_num: int) -> dict:
+    """Analyze FP2 long runs to compute tyre deg rate."""
+    try:
+        session = fastf1.get_session(year, round_num, 'FP2')
+        session.load(laps=True, telemetry=False, weather=False, messages=False)
+        
+        laps = session.laps.pick_quicklaps(1.07)
+        deg_data = {}
+        for compound in ['SOFT', 'MEDIUM', 'HARD']:
+            comp_laps = laps[laps['Compound'] == compound]
+            if len(comp_laps) < 5:
+                continue
+            
+            deg_rates = []
+            for driver in comp_laps['Driver'].unique():
+                dr_laps = comp_laps[comp_laps['Driver'] == driver]
+                for stint in dr_laps['Stint'].unique():
+                    dr_stint = dr_laps[dr_laps['Stint'] == stint].dropna(subset=['LapTime', 'TyreLife'])
+                    if len(dr_stint) >= 5:
+                        x = dr_stint['TyreLife'].values
+                        y = dr_stint['LapTime'].dt.total_seconds().values
+                        if len(x) > 1:
+                            slope, intercept = np.polyfit(np.array(x, dtype=float), np.array(y, dtype=float), 1)
+                            if 0 < slope < 0.3: # Filter out unrealistic deg
+                                deg_rates.append(slope)
+            
+            if deg_rates:
+                avg_deg = float(np.mean(deg_rates))
+                deg_data[compound] = round(avg_deg, 3)
+                
+        strategy = "1-Stop"
+        if deg_data.get('SOFT', 0) > 0.12 or deg_data.get('MEDIUM', 0) > 0.08:
+            strategy = "2-Stop"
+            
+        return {
+            'degradation_s_per_lap': deg_data,
+            'predicted_strategy': strategy,
+            'note': 'FP2 long-run analysis average across all teams.'
+        }
+    except Exception as e:
+        logger.error(f"FP2 Deg error ({year} R{round_num}): {e}")
+        return {'degradation_s_per_lap': {}, 'predicted_strategy': 'Unknown'}

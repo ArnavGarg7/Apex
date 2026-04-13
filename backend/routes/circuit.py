@@ -63,3 +63,16 @@ async def get_topology(circuit_id: str, user=Depends(require_auth)):
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_circuit_topology_by_id, circuit_id)
     return data
+
+
+@router.get('/{circuit_id}/heatmap')
+async def get_heatmap(circuit_id: str, year: int = 2024, user=Depends(require_auth)):
+    """
+    Returns per-point telemetry (throttle, brake, speed) matched to track coordinates
+    for the fastest qualifying lap at this circuit. Used for D3 heatmap overlay.
+    Results are expensive to compute — cache hit is common after first load.
+    """
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, ff1.get_circuit_heatmap, circuit_id, year)
+    return data
+
