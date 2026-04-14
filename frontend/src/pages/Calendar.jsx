@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
 import CountdownTimer from '@/components/shared/CountdownTimer';
@@ -71,74 +71,77 @@ export default function Calendar() {
             const isNow    = isRaceWeekend(raceDate);
 
             return (
-              <div
-                key={event.round_number}
-                className="panel"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '48px 1fr auto auto',
-                  alignItems: 'center',
-                  gap: 16,
-                  padding: '14px 20px',
-                  borderLeft: isNow ? '3px solid #E10600' : isPast ? '3px solid #222' : '3px solid #2a2a2a',
-                  opacity: isPast ? 0.55 : 1,
-                  transition: 'opacity 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease',
-                }}
-              >
-                {/* Round */}
-                <div style={{
-                  fontFamily: 'Orbitron, monospace', fontWeight: 900, fontSize: '1rem',
-                  color: isNow ? '#E10600' : '#333', textAlign: 'center',
-                }}>
-                  {event.round_number}
-                </div>
-
-                {/* Event info */}
-                <div>
-                  <div style={{ fontFamily: 'Titillium Web, sans-serif', fontWeight: 700, fontSize: '0.92rem', marginBottom: 2 }}>
-                    {event.event_name}
+              <React.Fragment key={event.round_number}>
+                <div
+                  className="panel"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '48px 1fr auto auto',
+                    alignItems: 'center',
+                    gap: 16,
+                    padding: '14px 20px',
+                    borderLeft: isNow ? '3px solid #E10600' : isPast ? '3px solid #222' : '3px solid #2a2a2a',
+                    opacity: isPast ? 0.55 : 1,
+                    transition: 'opacity 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                >
+                  {/* Round */}
+                  <div style={{
+                    fontFamily: 'Orbitron, monospace', fontWeight: 900, fontSize: '1rem',
+                    color: isNow ? '#E10600' : '#333', textAlign: 'center',
+                  }}>
+                    {event.round_number}
                   </div>
-                  <div style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.72rem', color: '#555' }}>
-                    {event.location} · {event.country}
-                    {event.event_format && (
-                      <span style={{ marginLeft: 8, padding: '1px 6px', background: 'rgba(255,255,255,0.04)', borderRadius: 2, fontSize: '0.62rem' }}>
-                        {event.event_format.toUpperCase()}
-                      </span>
+
+                  {/* Event info */}
+                  <div>
+                    <div style={{ fontFamily: 'Titillium Web, sans-serif', fontWeight: 700, fontSize: '0.92rem', marginBottom: 2 }}>
+                      {event.event_name}
+                    </div>
+                    <div style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.72rem', color: '#555' }}>
+                      {event.location} · {event.country}
+                      {event.event_format && (
+                        <span style={{ marginLeft: 8, padding: '1px 6px', background: 'rgba(255,255,255,0.04)', borderRadius: 2, fontSize: '0.62rem' }}>
+                          {event.event_format.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.68rem', color: '#666' }}>
+                      {formatDate(raceDate)}
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div style={{ flexShrink: 0, minWidth: 100, textAlign: 'right' }}>
+                    {isNow && <span className="badge badge-live">RACE WEEKEND</span>}
+                    {!isPast && !isNow && raceDate && <CountdownTimer targetDate={raceDate} />}
+                    {isPast && (
+                      <button
+                        onClick={() => setExpandedRound(expandedRound === event.round_number ? null : event.round_number)}
+                        style={{
+                          background: expandedRound === event.round_number ? 'rgba(225,6,0,0.1)' : 'transparent',
+                          border: expandedRound === event.round_number ? '1px solid rgba(225,6,0,0.5)' : '1px solid rgba(255,255,255,0.2)',
+                          color: expandedRound === event.round_number ? '#E10600' : '#ddd',
+                          borderRadius: 4, padding: '4px 12px', cursor: 'pointer',
+                          fontFamily: 'Orbitron, monospace', fontSize: '0.55rem', letterSpacing: '0.1em', fontWeight: 600,
+                          transition: 'all 0.2s',
+                          boxShadow: expandedRound === event.round_number ? '0 0 10px rgba(225,6,0,0.3)' : 'none',
+                        }}
+                      >
+                        {expandedRound === event.round_number ? '▲ STORY' : '▼ AI STORY'}
+                      </button>
                     )}
                   </div>
                 </div>
-
-                {/* Date */}
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.68rem', color: '#666' }}>
-                    {formatDate(raceDate)}
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div style={{ flexShrink: 0, minWidth: 100, textAlign: 'right' }}>
-                  {isNow && <span className="badge badge-live">RACE WEEKEND</span>}
-                  {!isPast && !isNow && raceDate && <CountdownTimer targetDate={raceDate} />}
-                  {isPast && (
-                    <button
-                      onClick={() => setExpandedRound(expandedRound === event.round_number ? null : event.round_number)}
-                      style={{
-                        background: 'transparent', border: '1px solid #2a2a2a',
-                        color: expandedRound === event.round_number ? '#E10600' : '#444',
-                        borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
-                        fontFamily: 'Orbitron, monospace', fontSize: '0.48rem', letterSpacing: '0.08em',
-                        transition: 'color 0.2s, border-color 0.2s',
-                      }}
-                    >
-                      {expandedRound === event.round_number ? '▲ STORY' : '▼ STORY'}
-                    </button>
-                  )}
-                </div>
-              </div>
-              {/* Story expand panel */}
-              {isPast && expandedRound === event.round_number && (
-                <RaceStoryInline year={year} round={event.round_number} />
-              )}
+                {/* Story expand panel */}
+                {isPast && expandedRound === event.round_number && (
+                  <RaceStoryInline year={year} round={event.round_number} />
+                )}
+              </React.Fragment>
             );
           })}
         </div>

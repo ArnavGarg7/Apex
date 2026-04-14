@@ -1,5 +1,7 @@
 # APEX | F1 Intelligence Dashboard
 
+**[🔴 LIVE DEMO: apex-92c8d.web.app](https://apex-92c8d.web.app)**
+
 ![APEX Splash](https://raw.githubusercontent.com/ArnavGarg7/Apex/main/splash_screen_preview.png)
 
 APEX is a premium Formula 1 data analytics and strategy platform. It combines live timing, historical telemetry analysis, and AI-powered race insights into a sleek, high-performance interface.

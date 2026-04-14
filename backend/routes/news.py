@@ -7,6 +7,8 @@ import re
 import json
 import asyncio
 import logging
+import time
+from datetime import datetime, date
 from fastapi import APIRouter, HTTPException, Depends
 from backend.dependencies import require_auth
 from dotenv import load_dotenv
@@ -15,6 +17,10 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Cache settings
+CACHE_FILE = os.path.join("data", "news_cache.json")
+CACHE_DURATION_SECONDS = 7200  # 2 hours
 
 def fetch_f1_news_from_gemini() -> dict:
     from backend.config import get_settings
@@ -38,6 +44,21 @@ def fetch_f1_news_from_gemini() -> dict:
         {"title": "Andretti Global Submits Revised FIA Entry Documentation", "source": "Autosport", "time": "6 days ago", "summary": "Andretti Global — now backed by General Motors — has submitted a revised entry application to the FIA for a 2028 start, following updated financial guarantees. The bid is expected to receive a formal hearing within the next 30 days."},
         {"title": "F1 Confirms Record 24-Race Calendar for 2027 Season", "source": "F1.com", "time": "7 days ago", "summary": "Formula 1 has officially confirmed a 24-race calendar for the 2027 season, with Madrid joining the grid for the first time and a second US race in Dallas under discussion. The announcement came alongside new broadcast rights deals across three continents."}
     ]
+
+    # --- Cache Logic Start ---
+    os.makedirs("data", exist_ok=True)
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                cached_data = json.load(f)
+            
+            last_fetch = cached_data.get("timestamp", 0)
+            if time.time() - last_fetch < CACHE_DURATION_SECONDS:
+                logger.info("Serving F1 news from cache")
+                return {"articles": cached_data.get("articles", [])}
+        except Exception as e:
+            logger.warning(f"Failed to read news cache: {e}")
+    # --- Cache Logic End ---
 
     if not api_key:
         logger.warning("GEMINI_API_KEY missing — using fallback news")
@@ -68,12 +89,14 @@ def fetch_f1_news_from_gemini() -> dict:
 
     try:
         from google.genai import types as genai_types
+# Add Google Search bounding to ensure real-time news retrieval
         response = client.models.generate_content(
             model='gemini-2.0-flash',
             contents=prompt,
             config=genai_types.GenerateContentConfig(
                 max_output_tokens=4096,
                 temperature=0.7,
+                tools=[{"google_search": {}}],
             ),
         )
         raw = response.text.strip()
@@ -91,10 +114,28 @@ def fetch_f1_news_from_gemini() -> dict:
         if not isinstance(articles, list):
             raise ValueError("Gemini did not return a list")
 
+        # Save to cache
+        cache_payload = {
+            "timestamp": time.time(),
+            "articles": articles[:15]
+        }
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache_payload, f)
+
         return {"articles": articles[:15]}
 
     except Exception as e:
-        logger.warning(f"Gemini processing failure, using fallback: {e}")
+        logger.warning(f"Gemini processing failure: {e}")
+        # If Gemini fails (quota hit), try to return the old cache even if it's expired
+        if os.path.exists(CACHE_FILE):
+            try:
+                with open(CACHE_FILE, "r") as f:
+                    cached_data = json.load(f)
+                logger.info("Gemini failed, using expired cache as secondary fallback")
+                return {"articles": cached_data.get("articles", [])}
+            except:
+                pass
+        
         return {"articles": fallback_articles}
 
 

@@ -3,7 +3,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+// In production, we leave API_BASE empty so browser requests are relative and routed via Nginx /api proxy.
+// In dev, we use either the explicit env var or fallback to the local dev port 8001.
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
 
 /**
  * Generic fetch hook for authenticated API calls.

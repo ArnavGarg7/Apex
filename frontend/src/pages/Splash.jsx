@@ -208,7 +208,6 @@ export default function Splash() {
             ))}
           </div>
         )}
-      </div>
 
       {/* Corner tags */}
       <div style={{ position: 'absolute', bottom: 20, right: 24, fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#2a2a2a', letterSpacing: '0.15em' }}>

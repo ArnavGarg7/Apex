@@ -163,9 +163,6 @@ export default function Strategy() {
                   drivers={timingData.map((d) => ({ number: d.driver_number, code: d.driver_code }))}
                 />
               </div>
-
-              {/* Tyre Deg Tool */}
-              <TyreDegTool />
             </>
           ) : (
             <div className="panel" style={{ textAlign: 'center', padding: 48 }}>
@@ -177,6 +174,15 @@ export default function Strategy() {
           )}
         </div>
       )}
+
+      {/* Tyre Deg Tool (Always visible, even pre-race) */}
+      <div style={{ marginTop: 32 }}>
+        <h2 style={{ fontFamily: 'Titillium Web', fontSize: '1rem', marginBottom: 16, color: '#eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 4, height: 16, background: '#F59E0B', borderRadius: 2 }}></span>
+          Pre-Race Analysis
+        </h2>
+        <TyreDegTool />
+      </div>
     </PageTransition>
   );
 }

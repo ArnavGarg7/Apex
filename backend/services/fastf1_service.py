@@ -446,11 +446,29 @@ def get_teammate_battle(year: int) -> list:
     """
     import requests
 
+    def _fetch_all_ergast(base_url):
+        results = []
+        offset = 0
+        limit = 100
+        while True:
+            url = f"{base_url}?limit={limit}&offset={offset}"
+            try:
+                resp = requests.get(url, timeout=10).json()
+                mrdata = resp.get('MRData', {})
+                races = mrdata.get('RaceTable', {}).get('Races', [])
+                results.extend(races)
+                total = int(mrdata.get('total', 0))
+                offset += limit
+                if offset >= total or not races:
+                    break
+            except Exception as e:
+                logger.error(f"Ergast pagination error at {url}: {e}")
+                break
+        return results
+
     try:
         # 1. Fetch all race results round-by-round from Ergast Jolpica mirror
-        url = f"https://api.jolpi.ca/ergast/f1/{year}/results.json?limit=1000"
-        resp = requests.get(url, timeout=15).json()
-        race_list = resp.get('MRData', {}).get('RaceTable', {}).get('Races', [])
+        race_list = _fetch_all_ergast(f"https://api.jolpi.ca/ergast/f1/{year}/results.json")
     except Exception as e:
         logger.error(f"Ergast race results error ({year}): {e}")
         return []
@@ -486,9 +504,7 @@ def get_teammate_battle(year: int) -> list:
 
     # 2. Fetch qualifying results for gap analysis
     try:
-        qual_url = f"https://api.jolpi.ca/ergast/f1/{year}/qualifying.json?limit=1000"
-        qual_resp = requests.get(qual_url, timeout=15).json()
-        qual_rounds = qual_resp.get('MRData', {}).get('RaceTable', {}).get('Races', [])
+        qual_rounds = _fetch_all_ergast(f"https://api.jolpi.ca/ergast/f1/{year}/qualifying.json")
     except Exception as e:
         logger.warning(f"Ergast qualifying error ({year}): {e}")
         qual_rounds = []
@@ -706,44 +722,78 @@ def get_circuit_heatmap(circuit_id: str, year: int) -> list:
 
 
 def get_fp2_degradation(year: int, round_num: int) -> dict:
-    """Analyze FP2 long runs to compute tyre deg rate."""
+    """Analyze FP2 long runs to compute tyre deg rate. Robust for 2021-2025."""
     try:
         session = fastf1.get_session(year, round_num, 'FP2')
         session.load(laps=True, telemetry=False, weather=False, messages=False)
         
-        laps = session.laps.pick_quicklaps(1.07)
+        # 115% of median lap time filters slow/outlier laps while keeping high-fuel runs
+        laps = session.laps.pick_quicklaps(1.15)
+        
+        # Ensure TyreLife is numeric and LapTime is timedelta
+        laps = laps.copy()
+        laps['LapTime_s'] = laps['LapTime'].dt.total_seconds()
+        laps['TyreLife'] = pd.to_numeric(laps['TyreLife'], errors='coerce')
+        
         deg_data = {}
         for compound in ['SOFT', 'MEDIUM', 'HARD']:
-            comp_laps = laps[laps['Compound'] == compound]
-            if len(comp_laps) < 5:
+            comp_laps = laps[laps['Compound'] == compound].dropna(subset=['LapTime_s', 'TyreLife'])
+            if len(comp_laps) < 3:
                 continue
             
             deg_rates = []
             for driver in comp_laps['Driver'].unique():
                 dr_laps = comp_laps[comp_laps['Driver'] == driver]
                 for stint in dr_laps['Stint'].unique():
-                    dr_stint = dr_laps[dr_laps['Stint'] == stint].dropna(subset=['LapTime', 'TyreLife'])
-                    if len(dr_stint) >= 5:
-                        x = dr_stint['TyreLife'].values
-                        y = dr_stint['LapTime'].dt.total_seconds().values
-                        if len(x) > 1:
-                            slope, intercept = np.polyfit(np.array(x, dtype=float), np.array(y, dtype=float), 1)
-                            if 0 < slope < 0.3: # Filter out unrealistic deg
-                                deg_rates.append(slope)
+                    dr_stint = dr_laps[dr_laps['Stint'] == stint].sort_values('LapNumber')
+                    if len(dr_stint) < 3:
+                        continue
+                    x = dr_stint['TyreLife'].values.astype(float)
+                    y = dr_stint['LapTime_s'].values.astype(float)
+                    # Require at least some tyre age variation to get a meaningful slope
+                    if len(set(x)) < 2:
+                        continue
+                    try:
+                        slope, _ = np.polyfit(x, y, 1)
+                        # Filter: only keep physically realistic degradation (not negative, not crazy high)
+                        if np.isfinite(slope) and 0 < slope < 0.5:
+                            deg_rates.append((slope, driver, len(dr_stint)))
+                    except Exception:
+                        continue
             
-            if deg_rates:
-                avg_deg = float(np.mean(deg_rates))
-                deg_data[compound] = round(avg_deg, 3)
+            if not deg_rates:
+                continue
+            
+            # IQR-based outlier rejection to remove anomalous stints
+            slopes = np.array([d[0] for d in deg_rates])
+            if len(slopes) >= 4:
+                q1, q3 = np.percentile(slopes, 25), np.percentile(slopes, 75)
+                iqr = q3 - q1
+                valid = [(s, d, l) for (s, d, l) in deg_rates if q1 - 1.5 * iqr <= s <= q3 + 1.5 * iqr]
+                if valid:
+                    deg_rates = valid
+            
+            all_slopes = [d[0] for d in deg_rates]
+            avg_deg = float(np.mean(all_slopes))
+            best_driver = sorted(deg_rates, key=lambda x: x[0])[0][1]
+            total_laps = sum(d[2] for d in deg_rates)
+            
+            deg_data[compound] = {
+                'val': round(avg_deg, 3),
+                'best_driver': best_driver,
+                'laps_analyzed': total_laps
+            }
                 
-        strategy = "1-Stop"
-        if deg_data.get('SOFT', 0) > 0.12 or deg_data.get('MEDIUM', 0) > 0.08:
-            strategy = "2-Stop"
+        # Strategy prediction based on median degradation levels
+        soft_deg = deg_data.get('SOFT', {}).get('val', 0)
+        med_deg = deg_data.get('MEDIUM', {}).get('val', 0)
+        strategy = "2-Stop" if soft_deg > 0.12 or med_deg > 0.08 else "1-Stop"
             
         return {
             'degradation_s_per_lap': deg_data,
             'predicted_strategy': strategy,
-            'note': 'FP2 long-run analysis average across all teams.'
+            'note': f'FP2 long-run ML regression via FastF1 ({sum(d["laps_analyzed"] for d in deg_data.values())} total laps).'
         }
     except Exception as e:
         logger.error(f"FP2 Deg error ({year} R{round_num}): {e}")
-        return {'degradation_s_per_lap': {}, 'predicted_strategy': 'Unknown'}
+        return {'degradation_s_per_lap': {}, 'predicted_strategy': 'Unknown', 'note': 'Data unavailable for this session.'}

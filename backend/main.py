@@ -6,10 +6,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,7 +37,12 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173', 'http://localhost:3000', 'https://apex.yourdomain.com'],
+    allow_origins=[
+        'http://localhost:5173', 
+        'http://localhost:3000', 
+        'https://apex-92c8d.web.app',
+        'https://apex-92c8d.firebaseapp.com'
+    ],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

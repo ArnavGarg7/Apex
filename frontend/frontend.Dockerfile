@@ -6,8 +6,8 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-# We need to build with VITE_API_BASE_URL empty so it uses relative paths mapped via Nginx
-RUN npm run build
+# We build with VITE_API_BASE_URL as an empty string so the frontend uses relative /api paths (proxied by Nginx)
+RUN VITE_API_BASE_URL="" npm run build
 
 
 FROM nginx:alpine

@@ -121,11 +121,15 @@ export default function Sidebar() {
           marginTop: 'auto',
           padding: '12px 16px',
           borderTop: '1px solid rgba(255,255,255,0.04)',
-          opacity: expanded ? 0.4 : 0,
+          opacity: expanded ? 1 : 0,
           transition: 'opacity 0.3s ease',
+          display: 'flex', flexDirection: 'column', gap: 4
         }}>
-          <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#555', letterSpacing: '0.15em' }}>
+          <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#999', letterSpacing: '0.15em' }}>
             APEX v3.0 — F1 INTELLIGENCE
+          </span>
+          <span style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.55rem', color: '#E10600', opacity: 0.8 }}>
+            Engineered by <strong style={{color: '#fff', fontWeight: 600}}>Arnav Garg</strong>
           </span>
         </div>
       )}
