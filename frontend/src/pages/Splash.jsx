@@ -8,17 +8,39 @@ import LogotypeReveal from '@/components/animations/LogotypeReveal';
 
 function Loader() {
   const { progress } = useProgress();
+  const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (progress === 0) setStalled(true);
+    }, 10000); // 10 seconds without progress
+    return () => clearTimeout(timer);
+  }, [progress]);
+
   return (
     <Html center>
-      <div style={{ color: '#E10600', fontFamily: 'Orbitron', fontSize: '0.75rem', letterSpacing: '0.2em', whiteSpace: 'nowrap' }}>
-        RENDERING {progress.toFixed(0)}%
+      <div style={{ 
+        textAlign: 'center', width: '100vw', 
+        position: 'absolute', bottom: '-40vh', // Push it down away from the center branding
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
+      }}>
+        <div style={{ color: '#E10600', fontFamily: 'Orbitron', fontSize: '0.65rem', letterSpacing: '0.2rem', whiteSpace: 'nowrap', marginBottom: 8, opacity: 0.8 }}>
+          RENDERING {progress.toFixed(0)}%
+        </div>
+        <div style={{ width: 240, height: 1, background: 'rgba(255,255,255,0.05)', position: 'relative' }}>
+          <div style={{ 
+            width: `${progress}%`, height: '100%', background: '#E10600', 
+            transition: 'width 0.3s ease-out', boxShadow: '0 0 8px #E10600' 
+          }} />
+        </div>
       </div>
     </Html>
   );
 }
 
 function F1CarModel() {
-  const { scene } = useGLTF('/assets/models/f1-car.glb');
+  // Append version string to force CDN/Browser to download the fresh uncompressed model
+  const { scene } = useGLTF('/assets/models/f1-car.glb?v=4.14');
   return <primitive object={scene} scale={1} position={[0, -0.2, 0]} />;
 }
 
@@ -37,9 +59,7 @@ function InteractiveCarScene({ height = 360 }) {
         <pointLight position={[-2, 0.5, -2]} color="#3671C6" intensity={0.6} distance={5} />
         <pointLight position={[0, -0.5, 0]} color="#E10600" intensity={0.3} distance={3} />
 
-        <Suspense fallback={<Loader />}>
-          <F1CarModel />
-        </Suspense>
+        <F1CarModel />
 
         <OrbitControls
           enableZoom={false}
@@ -66,13 +86,14 @@ function InteractiveCarScene({ height = 360 }) {
 }
 
 export default function Splash() {
+  const { progress: modelProgress } = useProgress();
   const [progress, setProgress] = useState(0);
   const [revealDone, setRevealDone] = useState(false);
   const [carReady, setCarReady] = useState(false);
   const navigate = useNavigate();
   const gpuTier = useGpuTier();
 
-  // Simulate asset loading progress
+  // Simulate asset loading progress for the UI
   useEffect(() => {
     let p = 0;
     const timer = setInterval(() => {
@@ -87,7 +108,7 @@ export default function Splash() {
     return () => clearInterval(timer);
   }, []);
 
-  const canEnter = progress >= 100 && revealDone;
+  const canEnter = progress >= 100 && revealDone && modelProgress >= 100;
 
   return (
     <div style={{
@@ -123,8 +144,8 @@ export default function Splash() {
         position: 'absolute',
         inset: 0,
         zIndex: 0,
-        opacity: 0.5, // Reduced opacity as requested
-        pointerEvents: 'none', // Allow clicks to pass through to the button
+        opacity: 0.5,
+        pointerEvents: 'none',
       }}>
         <InteractiveCarScene height="100vh" />
       </div>
@@ -152,10 +173,24 @@ export default function Splash() {
           color: '#888',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 40,
+          marginBottom: 20,
         }}>
           Formula 1 Intelligence Platform
         </div>
+
+        {/* 3D Rendering Progress — Positioned exactly between tagline and button */}
+        {modelProgress < 100 && (
+          <div style={{
+            fontFamily: 'Orbitron, monospace',
+            fontSize: '0.7rem',
+            color: '#E10600',
+            letterSpacing: '0.2em',
+            marginBottom: 20,
+            animation: 'breathe 2s ease-in-out infinite'
+          }}>
+            RENDERING {modelProgress.toFixed(0)}%
+          </div>
+        )}
 
         {/* ESTABLISH UPLINK button */}
         <div style={{ position: 'relative' }}>
@@ -211,7 +246,7 @@ export default function Splash() {
 
       {/* Corner tags */}
       <div style={{ position: 'absolute', bottom: 20, right: 24, fontFamily: 'Orbitron, monospace', fontSize: '0.45rem', color: '#2a2a2a', letterSpacing: '0.15em' }}>
-        APEX v2.0 — F1 INTELLIGENCE SYSTEM
+        APEX v2.0 — F1 INTELLIGENCE SYSTEM | ENGINEERED BY ARNAV GARG
       </div>
     </div>
   );

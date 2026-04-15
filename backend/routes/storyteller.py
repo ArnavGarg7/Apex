@@ -73,16 +73,26 @@ Instructions:
 - Aim for ~200 words total. Do not use bullet points or headings — pure prose only.
 """
 
-    # 3. Call Gemini
+    # 3. Call Gemini via REST
     try:
-        import google.generativeai as genai
+        import httpx
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
             raise ValueError("GEMINI_API_KEY not set")
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        story_text = response.text.strip()
+            
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        
+        with httpx.Client(timeout=30.0) as client:
+            res = client.post(url, json=payload)
+            res.raise_for_status()
+            
+            resp_data = res.json()
+            story_text = resp_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            story_text = story_text.strip()
+            
     except Exception as e:
         logger.error(f"Gemini storyteller error: {e}")
         story_text = (

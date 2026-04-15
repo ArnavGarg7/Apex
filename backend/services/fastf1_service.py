@@ -679,46 +679,61 @@ def get_race_story_data(year: int, round_num: int) -> dict:
         return {}
 
 
-def get_circuit_heatmap(circuit_id: str, year: int) -> list:
-    """Fetch telemetry points with speed, brake, throttle for D3 coloring."""
+def get_circuit_heatmap(circuit_id: str, year: int = 2024) -> list:
+    """Fetch telemetry points with speed, brake, throttle for D3 coloring.
+    Tries the requested year first, then falls back to recent years."""
     import datetime
     gp_name = CIRCUIT_GP_MAP.get(circuit_id.lower(), circuit_id)
-    try:
-        schedule = fastf1.get_event_schedule(year)
-        event = schedule[
-            schedule['EventName'].str.contains(gp_name, case=False, na=False) |
-            schedule['Country'].str.contains(gp_name, case=False, na=False) |
-            schedule['Location'].str.contains(gp_name, case=False, na=False)
-        ]
-        if event.empty:
-            return []
-            
-        round_num = int(event.iloc[0]['RoundNumber'])
-        session = fastf1.get_session(year, round_num, 'Q')
-        session.load(laps=True, telemetry=True, weather=False, messages=False)
-        
-        fastest_lap = session.laps.pick_fastest()
-        if fastest_lap is None or pd.isna(fastest_lap['LapTime']):
-            return []
-            
-        telemetry = fastest_lap.get_telemetry()
-        # Sample to ~300 points for the heatmap SVG
-        step = max(1, len(telemetry) // 350)
-        sampled = telemetry.iloc[::step]
-        
-        points = []
-        for _, row in sampled.iterrows():
-            points.append({
-                'x': _safe_val(row['X']),
-                'y': _safe_val(row['Y']),
-                'speed': _safe_val(row['Speed']),
-                'brake': _safe_val(row['Brake']),
-                'throttle': _safe_val(row['Throttle'])
-            })
-        return points
-    except Exception as e:
-        logger.error(f"Heatmap error ({circuit_id} {year}): {e}")
-        return []
+    current_year = datetime.date.today().year
+    years_to_try = [year] + [y for y in range(current_year - 1, current_year - 7, -1) if y != year]
+
+    for try_year in years_to_try:
+        try:
+            schedule = fastf1.get_event_schedule(try_year)
+            event = schedule[
+                schedule['EventName'].str.contains(gp_name, case=False, na=False) |
+                schedule['Country'].str.contains(gp_name, case=False, na=False) |
+                schedule['Location'].str.contains(gp_name, case=False, na=False)
+            ]
+            if event.empty:
+                continue
+            round_num = int(event.iloc[0]['RoundNumber'])
+            if round_num == 0:
+                continue
+            session = fastf1.get_session(try_year, round_num, 'Q')
+            session.load(laps=True, telemetry=True, weather=False, messages=False)
+            fastest_lap = session.laps.pick_fastest()
+            if fastest_lap is None or pd.isna(fastest_lap['LapTime']):
+                continue
+            telemetry = fastest_lap.get_telemetry()
+            if telemetry.empty:
+                continue
+            step = max(1, len(telemetry) // 350)
+            sampled = telemetry.iloc[::step]
+            points = []
+            for _, row in sampled.iterrows():
+                x = _safe_val(row.get('X'))
+                y = _safe_val(row.get('Y'))
+                if x is None or y is None:
+                    continue
+                # Normalize brake to 0 or 100 so D3 scale works correctly
+                raw_brake = row.get('Brake', 0)
+                brake_val = 100 if raw_brake else 0
+                points.append({
+                    'x': x,
+                    'y': y,
+                    'speed': _safe_val(row.get('Speed')),
+                    'brake': brake_val,
+                    'throttle': _safe_val(row.get('Throttle'))
+                })
+            if points:
+                logger.info(f"Heatmap loaded for {circuit_id} using year {try_year}")
+                return points
+        except Exception as e:
+            logger.warning(f"Heatmap attempt failed ({circuit_id} {try_year}): {e}")
+            continue
+    logger.error(f"Heatmap: no data found for {circuit_id} across any year")
+    return []
 
 
 def get_fp2_degradation(year: int, round_num: int) -> dict:

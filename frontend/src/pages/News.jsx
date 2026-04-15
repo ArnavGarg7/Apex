@@ -4,7 +4,10 @@ import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
 
 export default function News() {
-  const { data, loading, error, refetch } = useRaceData('/api/news/latest', { immediate: true });
+  const { data, loading, error, refetch } = useRaceData('/api/news/latest', { 
+    immediate: true,
+    cacheKey: 'apex_news_cache'
+  });
 
   return (
     <PageTransition>

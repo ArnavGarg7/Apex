@@ -16,7 +16,7 @@ function Loader() {
 }
 
 function F1CarModel() {
-  const { scene } = useGLTF('/assets/models/f1-car.glb');
+  const { scene } = useGLTF('/assets/models/f1-car.glb?v=4.14');
   return <primitive object={scene} scale={1} position={[0, -0.2, 0]} />;
 }
 

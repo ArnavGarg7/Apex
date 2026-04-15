@@ -109,7 +109,10 @@ export function RaceStoryInline({ year, round }) {
 
 // ── Dashboard card (latest completed race story) ──────────────────────────────
 export default function RaceStory({ year = 2025 }) {
-  const { data, loading } = useRaceData(`/api/story/latest?year=${year}`, { immediate: true });
+  const { data, loading, refetch } = useRaceData(`/api/story/latest?year=${year}`, { 
+    immediate: true,
+    cacheKey: `apex_story_cache_${year}`
+  });
   const { displayed, done } = useTypewriter(data?.story, 12, !!data?.story);
 
   if (loading) return (

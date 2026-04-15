@@ -65,41 +65,41 @@ def fetch_f1_news_from_gemini() -> dict:
         return {"articles": fallback_articles}
 
     try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Gemini client error: {e}")
-        return {"articles": fallback_articles}
-
-    from datetime import date
-    today = date.today().strftime('%B %d, %Y')
-    prompt = (
-        f"Today's date is {today}. You are an expert Formula 1 journalist. "
-        "Search for and summarize the 15 most important Formula 1 news stories from the past 7 days. "
-        "Cover a range of topics including: race results, qualifying, driver news, team announcements, "
-        "technical updates, FIA regulations, championship standings, and paddock gossip. "
-        "Order them from most recent to oldest. "
-        "For each story return a JSON object with these exact keys: "
-        "'title' (punchy, specific headline — include driver/team names), "
-        "'source' (real publisher name, e.g. 'Sky Sports F1', 'Autosport', 'The Race', 'F1.com', 'Motorsport.com', 'BBC Sport'), "
-        "'time' (relative time like '1h ago', '3h ago', 'Yesterday', '2 days ago', '3 days ago', etc.), "
-        "'summary' (2 sentences: first states the key fact, second adds context or implication). "
-        "Return ONLY a raw JSON array of those 15 objects — no markdown, no code blocks, no preamble, no explanation."
-    )
-
-    try:
-        from google.genai import types as genai_types
-# Add Google Search bounding to ensure real-time news retrieval
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                max_output_tokens=4096,
-                temperature=0.7,
-                tools=[{"google_search": {}}],
-            ),
+        import httpx
+        from datetime import date
+        today = date.today().strftime('%B %d, %Y')
+        prompt = (
+            f"Today's date is {today}. You are an expert Formula 1 journalist. "
+            "Search for and summarize the 15 most important Formula 1 news stories from the past 7 days. "
+            "Cover a range of topics including: race results, qualifying, driver news, team announcements, "
+            "technical updates, FIA regulations, championship standings, and paddock gossip. "
+            "Order them from most recent to oldest. "
+            "For each story return a JSON object with these exact keys: "
+            "'title' (punchy, specific headline — include driver/team names), "
+            "'source' (real publisher name, e.g. 'Sky Sports F1', 'Autosport', 'The Race', 'F1.com', 'Motorsport.com', 'BBC Sport'), "
+            "'time' (relative time like '1h ago', '3h ago', 'Yesterday', '2 days ago', '3 days ago', etc.), "
+            "'summary' (2 sentences: first states the key fact, second adds context or implication). "
+            "Return ONLY a raw JSON array of those 15 objects — no markdown, no code blocks, no preamble, no explanation."
         )
-        raw = response.text.strip()
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "tools": [{"google_search": {}}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 4096
+            }
+        }
+        
+        with httpx.Client(timeout=30.0) as client:
+            res = client.post(url, json=payload)
+            res.raise_for_status()
+            
+            resp_data = res.json()
+            raw = resp_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            raw = raw.strip()
 
         # Strip markdown code fences if present
         raw = re.sub(r'^```(?:json)?\s*', '', raw)

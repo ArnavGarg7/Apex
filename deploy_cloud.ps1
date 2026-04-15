@@ -25,7 +25,7 @@ try {
 Write-Host "--- 3. Deploying to Cloud Run ---" -ForegroundColor Cyan
 # Cloud Run CLI fails parsing JSON via inline flags. We build a temporary env.yaml
 $JSON_CONTENT = (Get-Content $JSON_FILE -Raw).Replace("`r", "")
-$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ")
+$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ") + "`nGEMINI_API_KEY: `"AIzaSyDdACfUG0biuz_4KvaEwrNwcg-hKJQs2Rs`"`nOPENWEATHER_API_KEY: `"20141e6e704c122e5cfc91f3f968ea2f`"`n"
 Set-Content env.yaml $yaml
 
 try {
