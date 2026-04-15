@@ -8,7 +8,7 @@ export default function PageShell() {
   const location = useLocation();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#0D0D0D' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0D0D0D' }}>
       <Navbar />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 

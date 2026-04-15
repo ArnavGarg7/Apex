@@ -24,8 +24,9 @@ export function useRaceData(endpoint, { immediate = false, deps = [], cacheKey =
 
   // If the endpoint drastically changes (user clicked another track), immediately wipe old data
   if (endpoint !== currentUrl) {
-    // Only reset if we are not reading from cache, or handles it inside fetch
     setCurrentUrl(endpoint);
+    setData(null);
+    setLoading(true);
   }
 
   // Track whether we've done the initial fetch
