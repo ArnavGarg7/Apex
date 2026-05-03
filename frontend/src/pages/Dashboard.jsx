@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
-import { useLivePoll } from '@/hooks/useLivePoll';
 import { useSessionStore } from '@/store/sessionStore';
 import TimingTable from '@/components/live/TimingTable';
 import MagneticWrapper from '@/components/animations/MagneticWrapper';
@@ -11,12 +10,9 @@ import RaceStory from '@/components/shared/RaceStory';
 import { getTeamColor } from '@/utils/f1Colors';
 
 export default function Dashboard() {
-  const { setSession, updateTiming, setLive, isLive, currentSession, timingData } = useSessionStore();
+  const { isLive, currentSession, timingData } = useSessionStore();
   const { data: standings } = useRaceData('/api/standings/2026', { immediate: true });
   const { data: calendar  } = useRaceData('/api/calendar/2026',  { immediate: true });
-
-  useLivePoll('/api/live/session', (d) => { setSession(d); setLive(d?.is_live || false); }, 10000);
-  useLivePoll('/api/live/timing',  updateTiming, 5000, isLive);
 
 
   const leader         = standings?.drivers?.[0];

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Cache settings
-CACHE_FILE = os.path.join("data", "news_cache.json")
+CACHE_FILE = os.path.join("/tmp", "news_cache.json")
 CACHE_DURATION_SECONDS = 7200  # 2 hours
 
 def fetch_f1_news_from_gemini() -> dict:

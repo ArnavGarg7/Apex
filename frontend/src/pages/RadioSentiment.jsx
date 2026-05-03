@@ -4,10 +4,10 @@ import PageTransition from '@/components/animations/PageTransition';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
 
 export default function RadioSentiment() {
-  const { sessionKey, isLive } = useSessionStore();
+  const { sessionKey, isLive, dataRestricted, currentSession } = useSessionStore();
   const token = useUserStore((s) => s.idToken);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function RadioSentiment() {
       });
       if (!res.ok) throw new Error('Failed to fetch and analyze radio sentiment');
       const data = await res.json();
-      setMessages(data);
+      setMessages(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -31,16 +31,17 @@ export default function RadioSentiment() {
     }
   };
 
+  // Re-fetch whenever sessionKey arrives (from global poller) or live state changes
   useEffect(() => {
-    // Initial fetch on mount
+    if (!sessionKey || !token) return;
     fetchSentiment();
-    
-    // Set up polling interval every 30s during live session
+
+    // Poll every 30s during a live session
     if (isLive) {
       const interval = setInterval(fetchSentiment, 30000);
       return () => clearInterval(interval);
     }
-  }, [sessionKey, isLive]);
+  }, [sessionKey, isLive, token]);
 
   const getTagColor = (emotion) => {
     switch(emotion) {
@@ -86,12 +87,27 @@ export default function RadioSentiment() {
           <div style={{ fontSize: '0.75rem', color: '#555', fontFamily: 'Titillium Web' }}>{error}</div>
         </div>
       ) : messages.length === 0 ? (
-        <div className="panel" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#333', letterSpacing: '0.2em' }}>
-            NO MESSAGES TRANSMITTED
+        dataRestricted ? (
+          <div className="panel" style={{ borderTop: '2px solid #E10600', padding: '32px 24px', display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ fontSize: '2rem' }}>🏁</div>
+            <div>
+              <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#E10600', letterSpacing: '0.2em', marginBottom: 8 }}>
+                LIVE RACE IN PROGRESS{currentSession?.meeting_name ? ` — ${currentSession.meeting_name}` : ''}
+              </div>
+              <div style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.8rem', color: '#666', lineHeight: 1.6 }}>
+                Race control messages are sourced from OpenF1, which restricts access during live sessions to paid API subscribers.<br />
+                Check back after the race ends for the full session debrief.
+              </div>
+            </div>
           </div>
-          <p style={{ color: '#555', fontSize: '0.7rem', marginTop: 10 }}>It's quiet out there. A little too quiet.</p>
-        </div>
+        ) : (
+          <div className="panel" style={{ textAlign: 'center', padding: '60px 24px' }}>
+            <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#333', letterSpacing: '0.2em' }}>
+              NO MESSAGES TRANSMITTED
+            </div>
+            <p style={{ color: '#555', fontSize: '0.7rem', marginTop: 10 }}>It's quiet out there. A little too quiet.</p>
+          </div>
+        )
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {messages.map((msg, i) => {

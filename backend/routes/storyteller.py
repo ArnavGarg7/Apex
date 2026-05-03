@@ -12,7 +12,7 @@ from fastapi import APIRouter, Query, HTTPException
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-STORY_CACHE_DIR = Path(__file__).parents[2] / 'data' / 'stories'
+STORY_CACHE_DIR = Path('/tmp/stories')
 STORY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -12,8 +12,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Cache directory
-cache_dir = Path(__file__).parents[2] / 'data' / 'ff1_cache'
+# Cache directory - Use /tmp for Cloud Run compatibility
+import os
+cache_dir = Path(os.environ.get('FASTF1_CACHE_DIR', '/tmp/ff1_cache'))
 cache_dir.mkdir(parents=True, exist_ok=True)
 fastf1.Cache.enable_cache(str(cache_dir))
 
@@ -156,6 +157,56 @@ def get_calendar(year: int) -> list:
     except Exception as e:
         logger.error(f"FastF1 calendar error ({year}): {e}")
         return []
+
+
+def get_current_event_info(year: int) -> dict:
+    """Find the event currently in progress or most recently started based on session dates.
+    Used as a fallback when OpenF1 restricts access during a live race."""
+    import datetime as dt
+    try:
+        schedule = fastf1.get_event_schedule(year, include_testing=False)
+        now = dt.datetime.now(dt.timezone.utc)
+
+        for _, event in schedule.iterrows():
+            round_num = event.get('RoundNumber', 0)
+            if not round_num or round_num == 0:
+                continue
+            # Session5 = Race, Session4 = Sprint or Quali
+            for session_col in ['Session5DateUtc', 'Session4DateUtc', 'Session3DateUtc']:
+                session_date = event.get(session_col)
+                if session_date is None:
+                    continue
+                try:
+                    import pandas as pd
+                    if pd.isna(session_date):
+                        continue
+                    session_start = pd.Timestamp(session_date).tz_localize('UTC') if pd.Timestamp(session_date).tzinfo is None else pd.Timestamp(session_date).tz_convert('UTC')
+                    session_end_est = session_start + dt.timedelta(hours=3)
+                    if session_start <= pd.Timestamp(now) <= session_end_est:
+                        session_name = 'Race' if session_col == 'Session5DateUtc' else ('Sprint' if session_col == 'Session4DateUtc' else 'Qualifying')
+                        return {
+                            'meeting_name':       str(event.get('EventName', '')),
+                            'country_name':       str(event.get('Country', '')),
+                            'circuit_short_name': str(event.get('Location', '')),
+                            'session_name':       session_name,
+                            'round_number':       int(round_num),
+                        }
+                except Exception:
+                    continue
+
+        # No session currently running — return the most recently started event
+        latest = schedule.iloc[-1]
+        return {
+            'meeting_name':       str(latest.get('EventName', '')),
+            'country_name':       str(latest.get('Country', '')),
+            'circuit_short_name': str(latest.get('Location', '')),
+            'session_name':       'Race',
+            'round_number':       int(latest.get('RoundNumber', 0)),
+        }
+    except Exception as e:
+        logger.error(f"get_current_event_info error: {e}")
+        return {}
+
 
 
 # ─── Circuit History ──────────────────────────────────────────────────────────
@@ -732,8 +783,9 @@ def get_circuit_heatmap(circuit_id: str, year: int = 2024) -> list:
         except Exception as e:
             logger.warning(f"Heatmap attempt failed ({circuit_id} {try_year}): {e}")
             continue
-    logger.error(f"Heatmap: no data found for {circuit_id} across any year")
-    return []
+    # If all years fail, fall back to basic topology (layout)
+    logger.warning(f"Heatmap: no telemetry found for {circuit_id}, falling back to topology.")
+    return get_circuit_topology_by_id(circuit_id)
 
 
 def get_fp2_degradation(year: int, round_num: int) -> dict:

@@ -5,6 +5,7 @@ export const useSessionStore = create((set, get) => ({
   currentSession: null,
   timingData: [],
   isLive: false,
+  dataRestricted: false,   // true when OpenF1 blocks access during a live race
   lastUpdated: null,
   sessionKey: null,
   raceControlMessages: [],
@@ -13,6 +14,7 @@ export const useSessionStore = create((set, get) => ({
     set({
       currentSession: session,
       isLive: session?.is_live ?? false,
+      dataRestricted: session?.data_restricted ?? false,
       sessionKey: session?.session_key ?? null,
     }),
 
@@ -32,6 +34,7 @@ export const useSessionStore = create((set, get) => ({
       currentSession: null,
       timingData: [],
       isLive: false,
+      dataRestricted: false,
       lastUpdated: null,
       sessionKey: null,
       raceControlMessages: [],

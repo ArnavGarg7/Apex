@@ -1,7 +1,6 @@
 // src/pages/LiveTiming.jsx
 import { useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
-import { useLivePoll } from '@/hooks/useLivePoll';
 import { useSessionStore } from '@/store/sessionStore';
 import TimingTable from '@/components/live/TimingTable';
 import SectorHeatmap from '@/components/live/SectorHeatmap';
@@ -10,11 +9,8 @@ import DataDelayBadge from '@/components/shared/DataDelayBadge';
 import NextRaceCountdown from '@/components/shared/NextRaceCountdown';
 
 export default function LiveTiming() {
-  const { setSession, updateTiming, setLive, isLive, currentSession, timingData } = useSessionStore();
+  const { isLive, currentSession, timingData } = useSessionStore();
   const [tab, setTab] = useState('timing');
-
-  useLivePoll('/api/live/session', (d) => { setSession(d); setLive(d?.is_live || false); }, 10000);
-  useLivePoll('/api/live/timing',  updateTiming, 5000, true);
 
   return (
     <PageTransition>

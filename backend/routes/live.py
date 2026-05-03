@@ -13,21 +13,29 @@ router = APIRouter()
 
 @router.get('/session')
 async def get_current_session(user=Depends(require_auth)):
-    """Current/latest session status. Returns off-season state when no active session."""
+    """Current/latest session status. Returns off-season state when no active session.
+    Gracefully handles OpenF1 access restriction during live races."""
     from datetime import datetime, timezone, timedelta
     try:
         sessions = await openf1.get_session_status()
+
+        # OpenF1 blocks unauthenticated access during live races.
+        # When they do, they return a dict with 'detail' instead of a list.
+        if isinstance(sessions, dict) and 'detail' in sessions:
+            # OpenF1 is restricted — a live race is almost certainly in progress.
+            # Use FastF1 schedule to get session metadata as fallback.
+            return await _build_restricted_session_response()
+
         if not sessions:
             return {'status': 'Off-Season', 'is_live': False, 'data_delay_seconds': 30}
+
         s = sessions[-1]
         is_live = s.get('session_status', '') in ('Started',)
 
         # Check if the session date is more than 6 hours in the past
-        # If so, treat it as off-season rather than showing stale labels
         session_date_str = s.get('date_end') or s.get('date_start') or ''
         if session_date_str:
             try:
-                # OpenF1 dates are UTC ISO strings
                 session_end = datetime.fromisoformat(session_date_str.replace('Z', '+00:00'))
                 stale = (datetime.now(timezone.utc) - session_end) > timedelta(hours=6)
                 if stale and not is_live:
@@ -40,7 +48,7 @@ async def get_current_session(user=Depends(require_auth)):
                         'circuit_short_name':  None,
                     }
             except Exception:
-                pass  # If date parsing fails, fall through to normal response
+                pass
 
         return {
             **s,
@@ -50,6 +58,36 @@ async def get_current_session(user=Depends(require_auth)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+
+async def _build_restricted_session_response():
+    """Called when OpenF1 blocks access during a live race.
+    Uses FastF1 schedule to determine what session is currently running."""
+    import asyncio
+    from datetime import datetime, timezone
+    from backend.services import fastf1_service as ff1
+
+    try:
+        loop = asyncio.get_event_loop()
+        year = datetime.now(timezone.utc).year
+        schedule = await loop.run_in_executor(None, ff1.get_current_event_info, year)
+        return {
+            'status':          schedule.get('session_name', 'Race'),
+            'is_live':         True,
+            'data_restricted': True,  # Frontend uses this to show a special banner
+            'data_delay_seconds': 30,
+            'country_name':    schedule.get('country_name'),
+            'session_name':    schedule.get('session_name'),
+            'circuit_short_name': schedule.get('circuit_short_name'),
+            'meeting_name':    schedule.get('meeting_name'),
+        }
+    except Exception:
+        # Even the calendar lookup failed — still signal live/restricted
+        return {
+            'status':          'Race',
+            'is_live':         True,
+            'data_restricted': True,
+            'data_delay_seconds': 30,
+        }
 
 
 @router.get('/timing')

@@ -1,9 +1,9 @@
-// src/pages/Strategy.jsx
 import { useState, useEffect, Suspense } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useLivePoll } from '@/hooks/useLivePoll';
 import { useRaceData } from '@/hooks/useRaceData';
 import { useSessionStore } from '@/store/sessionStore';
+import { useUserStore } from '@/store/userStore';
 import TyreStintBar from '@/components/strategy/TyreStintBar';
 import PitGauge from '@/components/strategy/PitGauge';
 import ShapWaterfall from '@/components/strategy/ShapWaterfall';
@@ -13,8 +13,11 @@ import TyreScene from '@/components/three/TyreScene';
 import CompoundBadge from '@/components/shared/CompoundBadge';
 import DataDelayBadge from '@/components/shared/DataDelayBadge';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
+
 export default function Strategy() {
-  const { sessionKey, isLive, timingData } = useSessionStore();
+  const { sessionKey, isLive, dataRestricted, timingData, currentSession } = useSessionStore();
+  const token = useUserStore((s) => s.idToken);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [prediction, setPrediction]         = useState(null);
   const [undercutResult, setUndercutResult] = useState(null);
@@ -22,7 +25,6 @@ export default function Strategy() {
   const { refetch: fetchPrediction } = useRaceData(
     selectedDriver ? `/api/strategy/predict/${selectedDriver}` : null
   );
-  const { refetch: fetchUndercut } = useRaceData('/api/simulate/undercut');
 
   // Set first driver as default when live timing arrives
   useEffect(() => {
@@ -48,12 +50,16 @@ export default function Strategy() {
   const compound = prediction?.recommended_compound || 'SOFT';
 
   const handleUndercut = async ({ attacker, defender, offset }) => {
-    if (!sessionKey) return;
-    const data = await fetch(`/api/simulate/undercut`, {
+    if (!sessionKey || !token) return;
+    const res = await fetch(`${API_BASE}/api/simulate/undercut`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify({ session_key: sessionKey, attacking_driver: attacker, defending_driver: defender, pit_lap_offset: offset }),
-    }).then((r) => r.json());
+    });
+    const data = await res.json();
     setUndercutResult(data);
   };
 
@@ -69,21 +75,25 @@ export default function Strategy() {
         {isLive && <DataDelayBadge />}
       </div>
 
-      {!isLive ? (
-        /* ── No Live Session ─────────────────────────── */
+      {isLive && !dataRestricted ? null : (
+        /* ── No Live Session OR Data Restricted ─────────── */
         <div style={{ display: 'grid', gap: 16 }}>
           <div className="panel" style={{
-            borderTop: '2px solid #F59E0B',
+            borderTop: `2px solid ${dataRestricted ? '#E10600' : '#F59E0B'}`,
             display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px',
           }}>
-            <div style={{ fontSize: '1.4rem' }}>⚙️</div>
+            <div style={{ fontSize: '1.4rem' }}>{dataRestricted ? '🏎️' : '⚙️'}</div>
             <div>
-              <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: '#F59E0B', letterSpacing: '0.15em', marginBottom: 6 }}>
-                STANDBY MODE — NO ACTIVE SESSION
+              <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.65rem', color: dataRestricted ? '#E10600' : '#F59E0B', letterSpacing: '0.15em', marginBottom: 6 }}>
+                {dataRestricted
+                  ? `LIVE RACE IN PROGRESS${currentSession?.meeting_name ? ` — ${currentSession.meeting_name}` : ''}`
+                  : 'STANDBY MODE — NO ACTIVE SESSION'}
               </div>
               <div style={{ fontFamily: 'Titillium Web, sans-serif', fontSize: '0.8rem', color: '#666', lineHeight: 1.5 }}>
-                Strategy Intelligence activates automatically when a live session begins.<br />
-                Real-time ML predictions, pit confidence scores, and SHAP factor analysis will appear here.
+                {dataRestricted
+                  ? <>Live ML strategy requires real-time lap data from OpenF1, which restricts access during race sessions to paid API subscribers.<br />The pre-race analysis tools below are still available.
+                  </>
+                  : <>Strategy Intelligence activates automatically when a live session begins.<br />Real-time ML predictions, pit confidence scores, and SHAP factor analysis will appear here.</>}
               </div>
             </div>
           </div>
@@ -104,8 +114,9 @@ export default function Strategy() {
             ))}
           </div>
         </div>
-      ) : (
-        /* ── Live Strategy ──────────────────────────── */
+      )}
+
+      {isLive && !dataRestricted && (
         <div style={{ display: 'grid', gap: 16 }}>
           {/* Driver selector */}
           <div className="panel" style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
