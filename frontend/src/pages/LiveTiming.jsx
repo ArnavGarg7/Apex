@@ -4,7 +4,7 @@ import PageTransition from '@/components/animations/PageTransition';
 import { useSessionStore } from '@/store/sessionStore';
 import TimingTable from '@/components/live/TimingTable';
 import SectorHeatmap from '@/components/live/SectorHeatmap';
-import LapChart from '@/components/live/LapChart';
+import LiveLapChartWrapper from '@/components/live/LiveLapChartWrapper';
 import DataDelayBadge from '@/components/shared/DataDelayBadge';
 import NextRaceCountdown from '@/components/shared/NextRaceCountdown';
 
@@ -40,8 +40,7 @@ export default function LiveTiming() {
           {tab === 'timing' && <TimingTable data={timingData} />}
           {tab === 'sectors' && <SectorHeatmap data={timingData} />}
           {tab === 'chart' && (
-            <LapChart
-              data={Object.fromEntries(timingData.map((d) => [d.driver_code, { laps: [], teamName: d.team_name, pitLaps: [] }]))}
+            <LiveLapChartWrapper
               width={700}
               height={320}
             />

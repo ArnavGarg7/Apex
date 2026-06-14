@@ -13,7 +13,7 @@ import TyreScene from '@/components/three/TyreScene';
 import CompoundBadge from '@/components/shared/CompoundBadge';
 import DataDelayBadge from '@/components/shared/DataDelayBadge';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 export default function Strategy() {
   const { sessionKey, isLive, dataRestricted, timingData, currentSession } = useSessionStore();

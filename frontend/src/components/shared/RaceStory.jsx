@@ -2,8 +2,9 @@
 // AI-generated post-race narrative card with typewriter reveal
 import { useState, useEffect, useRef } from 'react';
 import { useRaceData } from '@/hooks/useRaceData';
+import { useUserStore } from '@/store/userStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 // ── Typewriter hook ───────────────────────────────────────────────────────────
 function useTypewriter(text, speed = 14, active = true) {

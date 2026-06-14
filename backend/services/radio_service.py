@@ -1,20 +1,46 @@
 """
 backend/services/radio_service.py
-Fetches Race Control messages via OpenF1 and uses Gemini to assign a fast "Sentiment / Emotion" tag.
+Fetches Race Control messages via SignalR (live) or OpenF1 (historical)
+and uses Gemini to assign a fast "Sentiment / Emotion" tag.
 """
 import logging
 from backend.services import openf1_service as openf1
 
 logger = logging.getLogger(__name__)
 
+
+def _get_signalr_race_control() -> list:
+    """Return race control messages from the live SignalR cache, or empty list."""
+    try:
+        from backend.services.signalr_service import cache, build_race_control_response
+        if cache.is_populated and cache.get('RaceControlMessages'):
+            return build_race_control_response(cache)
+    except Exception as e:
+        logger.debug(f"SignalR race control unavailable: {e}")
+    return []
+
+
 async def get_analyzed_race_control(session_key: int) -> list:
-    """Gets race control messages and batches them to Gemini for emotion tagging."""
-    messages = await openf1.get_race_control(session_key)
+    """Gets race control messages and batches them to Gemini for emotion tagging.
+
+    Priority: SignalR cache (live, free) → OpenF1 REST (historical, free off-session).
+    """
+    # ① Try SignalR live data first
+    messages = _get_signalr_race_control()
+
+    # ② Fall back to OpenF1 REST (works off-session only)
+    if not messages:
+        try:
+            messages = await openf1.get_race_control(session_key)
+        except Exception as e:
+            logger.warning(f"OpenF1 race control fallback failed: {e}")
+            messages = []
+
     if not messages:
         return []
 
     # Sort messages chronologically and take the last 30 so we don't blow up the prompt
-    messages = sorted(messages, key=lambda x: x.get('date', ''))[-30:]
+    messages = sorted(messages, key=lambda x: x.get('date', '') or x.get('Utc', ''))[-30:]
     
     # We will build a prompt to tag them
     from backend.config import get_settings
@@ -23,7 +49,7 @@ async def get_analyzed_race_control(session_key: int) -> list:
 
     # Default fallback tags
     for msg in messages:
-        msg_text = str(msg.get('message', '')).upper()
+        msg_text = str(msg.get('message', '') or msg.get('Message', '')).upper()
         if 'PENALTY' in msg_text or 'INVESTIGATION' in msg_text:
             msg['emotion'] = 'WARNING'
         elif 'SAFETY CAR' in msg_text or 'RED FLAG' in msg_text or 'YELLOW' in msg_text:
@@ -34,7 +60,7 @@ async def get_analyzed_race_control(session_key: int) -> list:
             msg['emotion'] = 'INFO'
             
     if not api_key:
-        return reversed(messages)
+        return list(reversed(messages))
 
     try:
         from google import genai
@@ -43,7 +69,7 @@ async def get_analyzed_race_control(session_key: int) -> list:
         # Prepare batch string
         lines = []
         for i, m in enumerate(messages):
-            lines.append(f"[{i}] {m.get('message')}")
+            lines.append(f"[{i}] {m.get('message') or m.get('Message', '')}")
             
         prompt = (
             "You are an F1 Race Control Sentiment analyzer. Assign an emotion/category to each message.\n"
@@ -76,4 +102,4 @@ async def get_analyzed_race_control(session_key: int) -> list:
     except Exception as e:
         logger.error(f"Failed to tag emotions with Gemini: {e}")
         
-    return reversed(messages)
+    return list(reversed(messages))

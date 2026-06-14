@@ -3,6 +3,7 @@ backend/main.py
 FastAPI application entry point.
 """
 from contextlib import asynccontextmanager
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -15,15 +16,36 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm-load ML models on startup."""
+    """Start background services and warm-load ML models on startup."""
     logger.info("APEX backend starting...")
+
+    # ── ML models ────────────────────────────────────────────────────────
     try:
         from backend.services.model_service import preload_models
         await preload_models()
         logger.info("ML models preloaded.")
     except Exception as e:
         logger.warning(f"ML preload skipped: {e}")
+
+    # ── F1 SignalR live timing service ───────────────────────────────────
+    try:
+        from backend.services.signalr_service import cache, service
+        # Give the cache a reference to the running asyncio loop so the
+        # SignalR thread can push SSE updates onto it.
+        cache.set_event_loop(asyncio.get_running_loop())
+        service.start()
+        logger.info("F1 SignalR timing service started.")
+    except Exception as e:
+        logger.warning(f"SignalR service start skipped: {e}")
+
     yield
+
+    # ── Graceful shutdown ─────────────────────────────────────────────────
+    try:
+        from backend.services.signalr_service import service as _svc
+        _svc.stop()
+    except Exception:
+        pass
     logger.info("APEX backend shutting down.")
 
 

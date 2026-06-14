@@ -4,7 +4,7 @@ import PageTransition from '@/components/animations/PageTransition';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUserStore } from '@/store/userStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 export default function RadioSentiment() {
   const { sessionKey, isLive, dataRestricted, currentSession } = useSessionStore();

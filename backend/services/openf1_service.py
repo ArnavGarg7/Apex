@@ -12,18 +12,32 @@ OPENF1_BASE = 'https://api.openf1.org/v1'
 TIMEOUT      = 15.0
 
 
-async def _get(endpoint: str, params: dict = None) -> list:
+async def _get(endpoint: str, params: dict = None) -> list | dict:
     """Generic GET to OpenF1 API."""
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+    import httpx
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as client:
         resp = await client.get(f'{OPENF1_BASE}/{endpoint}', params=params)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in (401, 403):
+                # Return the error JSON (usually {"detail": "..."}) instead of crashing
+                try:
+                    res = e.response.json()
+                    if 'sessions' in endpoint:
+                        return res
+                    return []
+                except Exception:
+                    return []
+            raise e
         return resp.json()
 
 
 async def get_latest_session_key() -> Optional[int]:
     """Get the session key of the most recent session."""
     sessions = await _get('sessions', {'session_key': 'latest'})
-    if sessions:
+    if isinstance(sessions, list) and sessions:
         return sessions[-1].get('session_key')
     return None
 

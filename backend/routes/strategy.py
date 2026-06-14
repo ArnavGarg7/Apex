@@ -13,11 +13,22 @@ router = APIRouter()
 
 
 @router.get('/predict/{driver_number}')
-async def predict_strategy(driver_number: int, session_key: Optional[int] = None,
+async def predict_strategy(driver_number: int, session_key: Optional[str] = None,
                             user=Depends(require_auth)):
     """ML pit-stop prediction for a driver in the current session."""
     if not session_key:
-        session_key = await openf1.get_latest_session_key()
+        try:
+            session_key = await openf1.get_latest_session_key()
+        except Exception:
+            pass
+    # Fall back to SignalR session key if OpenF1 is blocked
+    if not session_key:
+        try:
+            from backend.services.signalr_service import cache
+            si = cache.get('SessionInfo') or {}
+            session_key = si.get('Key')
+        except Exception:
+            pass
     if not session_key:
         raise HTTPException(status_code=404, detail='No active session')
 
@@ -51,14 +62,38 @@ async def predict_strategy(driver_number: int, session_key: Optional[int] = None
 
 
 @router.get('/predict-all')
-async def predict_all_drivers(session_key: Optional[int] = None, user=Depends(require_auth)):
+async def predict_all_drivers(session_key: Optional[str] = None, user=Depends(require_auth)):
     """Predictions for all drivers in the current session."""
     if not session_key:
-        session_key = await openf1.get_latest_session_key()
+        try:
+            session_key = await openf1.get_latest_session_key()
+        except Exception:
+            pass
+    if not session_key:
+        try:
+            from backend.services.signalr_service import cache
+            si = cache.get('SessionInfo') or {}
+            session_key = si.get('Key')
+        except Exception:
+            pass
     if not session_key:
         raise HTTPException(status_code=404, detail='No active session')
 
     drivers = await openf1.get_drivers(session_key)
+    if not drivers:
+        try:
+            from backend.services.signalr_service import cache
+            dl = cache.get('DriverList') or {}
+            drivers = []
+            for num_str, drv in dl.items():
+                if isinstance(drv, dict):
+                    drivers.append({
+                        'driver_number': int(num_str) if num_str.isdigit() else 0,
+                        'name_acronym': drv.get('Tla', '???')
+                    })
+        except Exception:
+            pass
+
     results = []
     for drv in drivers:
         dn = drv.get('driver_number')

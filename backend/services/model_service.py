@@ -34,6 +34,8 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
     """
     Fetches live data for a driver and generates pit-stop prediction.
     Returns prediction dict or None if models or data unavailable.
+
+    Data priority: OpenF1 REST → SignalR cache (live).
     """
     predictor = _get_predictor()
     if predictor is None:
@@ -46,7 +48,7 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
         drivers = await openf1.get_drivers(session_key)
 
         if not laps:
-            return None
+            raise ValueError("No lap data from OpenF1")
 
         latest_lap = laps[-1]
         pit_counts = sum(1 for p in pits if p.get('driver_number') == driver_number)
@@ -105,8 +107,74 @@ async def predict_for_driver(session_key: int, driver_number: int) -> Optional[d
         return result
 
     except Exception as e:
-        logger.error(f"Prediction failed for driver {driver_number}: {e}")
-        return None
+        logger.warning(f"OpenF1 prediction path failed for driver {driver_number}: {e}")
+
+        # ── SignalR Fallback ─────────────────────────────────────────────
+        try:
+            from backend.services.signalr_service import cache
+            timing_app = cache.get('TimingAppData') or {}
+            timing_data = cache.get('TimingData') or {}
+            driver_list = cache.get('DriverList') or {}
+            lap_count = cache.get('LapCount') or {}
+
+            dn_str = str(driver_number)
+            app_line = (timing_app.get('Lines', {}) or {}).get(dn_str, {}) or {}
+            timing_line = (timing_data.get('Lines', {}) or {}).get(dn_str, {}) or {}
+
+            if not app_line and not timing_line:
+                return None
+
+            # Extract stint info from TimingAppData
+            stints_raw = app_line.get('Stints', {})
+            stints = []
+            compound = 'UNKNOWN'
+            tyre_age = 0
+            pit_stops = 0
+            if stints_raw:
+                stint_list = list(stints_raw.values()) if isinstance(stints_raw, dict) else stints_raw
+                for i, stint in enumerate(stint_list):
+                    if isinstance(stint, dict):
+                        stints.append({
+                            'compound': stint.get('Compound', 'UNKNOWN'),
+                            'startLap': stint.get('StartLaps', i * 15 + 1),
+                            'endLap': stint.get('TotalLaps', 0) + stint.get('StartLaps', i * 15 + 1),
+                        })
+                if stint_list:
+                    latest = stint_list[-1]
+                    if isinstance(latest, dict):
+                        compound = latest.get('Compound', 'UNKNOWN')
+                        tyre_age = latest.get('TotalLaps', 0)
+                        pit_stops = max(0, len(stint_list) - 1)
+
+            current_lap = lap_count.get('CurrentLap', 0) if isinstance(lap_count, dict) else 0
+            total_laps = lap_count.get('TotalLaps', 60) if isinstance(lap_count, dict) else 60
+
+            compound_map = {'SOFT': 0, 'MEDIUM': 1, 'HARD': 2, 'INTERMEDIATE': 3, 'WET': 4}
+            compound_enc = compound_map.get(str(compound).upper(), 1)
+
+            feature_row = {
+                'lap_number':       current_lap or 0,
+                'tyre_age':         tyre_age or 0,
+                'compound_enc':     compound_enc,
+                'lap_time_delta':   0.0,
+                'gap_ahead':        0.0,
+                'gap_behind':       0.0,
+                'sc_lap':           0,
+                'circuit_id':       'unknown',
+                'total_race_laps':  total_laps,
+                'pit_loss_avg':     22.5,
+            }
+
+            loop = asyncio.get_event_loop()
+            from ml.predict import predict_pit
+            result = await loop.run_in_executor(None, predict_pit, feature_row)
+            result['stints'] = stints
+            result['total_laps'] = total_laps
+            return result
+
+        except Exception as e2:
+            logger.error(f"SignalR prediction fallback also failed for driver {driver_number}: {e2}")
+            return None
 
 
 async def preload_models():

@@ -11,9 +11,19 @@ from backend.dependencies import require_auth
 router = APIRouter()
 
 @router.get('/sentiment')
-async def get_radio_sentiment(session_key: Optional[int] = None, user=Depends(require_auth)):
+async def get_radio_sentiment(session_key: Optional[str] = None, user=Depends(require_auth)):
     if not session_key:
-        session_key = await openf1.get_latest_session_key()
+        try:
+            session_key = await openf1.get_latest_session_key()
+        except Exception:
+            pass
+    if not session_key:
+        try:
+            from backend.services.signalr_service import cache
+            si = cache.get('SessionInfo') or {}
+            session_key = si.get('Key')
+        except Exception:
+            pass
     if not session_key:
         raise HTTPException(status_code=404, detail='No active session')
 

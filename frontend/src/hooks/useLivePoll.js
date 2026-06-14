@@ -2,7 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 /**
  * Polls an API endpoint at a given interval.

@@ -1,8 +1,16 @@
 // src/components/layout/PageShell.jsx
-// Global layout: session polling lives here so ALL pages have access to isLive / sessionKey
+// Global layout wrapper.
+//
+// Session polling strategy:
+//  • /api/live/session is polled every 5 s (was 10 s) to catch session starts quickly
+//  • /api/live/timing is polled every 2 s when live (faster than before)
+//  • useEventStream opens an SSE connection when live for *instant* SignalR push updates
+//    (SSE is the primary real-time channel; polling is the reliable fallback)
+
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useLivePoll } from '@/hooks/useLivePoll';
+import { useEventStream } from '@/hooks/useEventStream';
 import { useSessionStore } from '@/store/sessionStore';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
@@ -10,16 +18,19 @@ import Sidebar from './Sidebar';
 function GlobalSessionPoller() {
   const { setSession, updateTiming, setLive, isLive } = useSessionStore();
 
-  // Poll session status every 10 s (always active) — populates isLive & sessionKey globally
+  // Poll session status every 5 s — populates isLive & sessionKey globally
   useLivePoll('/api/live/session', (d) => {
     setSession(d);
     setLive(d?.is_live || false);
-  }, 10000);
+  }, 5000);
 
-  // Poll live timing every 5 s (only when a race is active)
-  useLivePoll('/api/live/timing', updateTiming, 5000, isLive);
+  // Poll timing every 2 s when a race is active
+  useLivePoll('/api/live/timing', updateTiming, 2000, isLive);
 
-  return null; // renders nothing — side-effects only
+  // SSE: instant push from the SignalR backend during live sessions
+  useEventStream(isLive);
+
+  return null; // side-effects only
 }
 
 export default function PageShell() {
@@ -27,7 +38,7 @@ export default function PageShell() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0D0D0D' }}>
-      {/* Global session poller — runs on every page */}
+      {/* Global session poller + SSE stream — runs on every page */}
       <GlobalSessionPoller />
 
       <Navbar />

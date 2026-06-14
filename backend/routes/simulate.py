@@ -14,4 +14,8 @@ async def get_monte_carlo(year: int, remaining: int = 5, user=Depends(require_au
     loop = asyncio.get_event_loop()
     # Run in executor because fetching standings in simulate_championship is synchronous right now
     data = await loop.run_in_executor(None, simulate_championship, year, remaining, 1000)
+    
+    if not data or not data.get('drivers'):
+        raise HTTPException(status_code=503, detail='Failed to fetch championship standings from upstream API. Please try again later.')
+        
     return data

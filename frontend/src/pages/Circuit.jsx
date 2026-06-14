@@ -44,7 +44,7 @@ function CircuitSVG({ topology, mode, loading }) {
   if (!topology || topology.length === 0) return (
     <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.6rem', color: '#333', letterSpacing: '0.15em' }}>
-        TELEMETRY NOT AVAILABLE
+        TELEMETRY NOT AVAILABLE (v2)
       </div>
     </div>
   );
@@ -102,14 +102,26 @@ export default function Circuit() {
   // If layout, fast load the topology endpoint. Else, the slower heatmap endpoint.
   const endpoint = mode === 'layout' ? 'topology' : 'heatmap';
 
-  const { data: topology, loading: topoLoading } = useRaceData(
-    `/api/circuit/${selected}/${endpoint}`,
-    { immediate: true, deps: [selected, endpoint] }
-  );
-  const { data: history, loading: histLoading } = useRaceData(
-    `/api/circuit/${selected}/history`,
-    { immediate: true, deps: [selected] }
-  );
+  const [circuitsData, setCircuitsData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/data/circuits.json?v=2')
+      .then(res => res.json())
+      .then(data => {
+        setCircuitsData(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load static circuits data:', err);
+        setIsLoading(false);
+      });
+  }, []);
+
+  const topology = circuitsData?.[selected]?.[endpoint] || [];
+  const history = circuitsData?.[selected]?.history || [];
+  const topoLoading = isLoading;
+  const histLoading = isLoading;
 
   const circuit = ALL_CIRCUITS.find(c => c.id === selected) || ALL_CIRCUITS[0];
 

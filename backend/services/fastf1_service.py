@@ -81,8 +81,13 @@ def get_session_results(year: int, round: int) -> list:
 
 # ─── Standings ───────────────────────────────────────────────────────────────
 
+_STANDINGS_CACHE = {}
+
 def get_standings(year: int) -> dict:
     """Driver & Constructor standings from Ergast mirror (Jolpica)."""
+    if year in _STANDINGS_CACHE:
+        return _STANDINGS_CACHE[year]
+
     try:
         import requests
         drivers_url = f"https://api.jolpi.ca/ergast/f1/{year}/driverStandings.json"
@@ -128,7 +133,10 @@ def get_standings(year: int) -> dict:
                     'gap_to_leader': 0 if int(row.get('position', 0)) == 1 else leader_pts - pts,
                 })
 
-        return {'drivers': drivers, 'constructors': constructors}
+        result = {'drivers': drivers, 'constructors': constructors}
+        if drivers:
+            _STANDINGS_CACHE[year] = result
+        return result
 
     except Exception as e:
         logger.error(f"Standings API error ({year}): {e}")
@@ -249,11 +257,13 @@ def get_circuit_history(circuit_id: str) -> list:
     for year in range(current_year - 1, current_year - 8, -1):
         try:
             schedule = fastf1.get_event_schedule(year)
-            # Try broad match across EventName, Country, and Location
+            # Try broad match across EventName, Country, and Location, excluding testing (Round 0)
             event = schedule[
-                schedule['EventName'].str.contains(gp_name, case=False, na=False) |
-                schedule['Country'].str.contains(gp_name, case=False, na=False) |
-                schedule['Location'].str.contains(gp_name, case=False, na=False)
+                (schedule['RoundNumber'] > 0) & (
+                    schedule['EventName'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Country'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Location'].str.contains(gp_name, case=False, na=False)
+                )
             ]
             if event.empty:
                 continue
@@ -311,9 +321,11 @@ def get_circuit_topology_by_id(circuit_id: str) -> list:
         try:
             schedule = fastf1.get_event_schedule(year)
             event = schedule[
-                schedule['EventName'].str.contains(gp_name, case=False, na=False) |
-                schedule['Country'].str.contains(gp_name, case=False, na=False) |
-                schedule['Location'].str.contains(gp_name, case=False, na=False)
+                (schedule['RoundNumber'] > 0) & (
+                    schedule['EventName'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Country'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Location'].str.contains(gp_name, case=False, na=False)
+                )
             ]
             if not event.empty:
                 round_num = int(event.iloc[0]['RoundNumber'])
@@ -742,9 +754,11 @@ def get_circuit_heatmap(circuit_id: str, year: int = 2024) -> list:
         try:
             schedule = fastf1.get_event_schedule(try_year)
             event = schedule[
-                schedule['EventName'].str.contains(gp_name, case=False, na=False) |
-                schedule['Country'].str.contains(gp_name, case=False, na=False) |
-                schedule['Location'].str.contains(gp_name, case=False, na=False)
+                (schedule['RoundNumber'] > 0) & (
+                    schedule['EventName'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Country'].str.contains(gp_name, case=False, na=False) |
+                    schedule['Location'].str.contains(gp_name, case=False, na=False)
+                )
             ]
             if event.empty:
                 continue

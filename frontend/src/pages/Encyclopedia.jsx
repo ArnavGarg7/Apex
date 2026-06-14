@@ -3,7 +3,7 @@ import { useState } from 'react';
 import PageTransition from '@/components/animations/PageTransition';
 import { useRaceData } from '@/hooks/useRaceData';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 // ── Driver Card Component ────────────────────────────────────────────────
 function DriverCard({ driver }) {

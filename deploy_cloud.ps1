@@ -36,6 +36,7 @@ try {
       --allow-unauthenticated `
       --memory 2Gi `
       --cpu 1 `
+      --min-instances 1 `
       --timeout 300 `
       --env-vars-file env.yaml
 } finally {

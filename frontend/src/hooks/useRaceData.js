@@ -5,7 +5,7 @@ import { useUserStore } from '@/store/userStore';
 
 // In production, we leave API_BASE empty so browser requests are relative and routed via Nginx /api proxy.
 // In dev, we use either the explicit env var or fallback to the local dev port 8001.
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8001');
+const API_BASE = 'https://apex-backend-uqtw7bvyla-uc.a.run.app';
 
 /**
  * Generic fetch hook for authenticated API calls.
