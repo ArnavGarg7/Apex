@@ -4,8 +4,9 @@ Circuit info, topology, and historical data.
 Now supports all 24 circuits listed in the frontend.
 """
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from backend.services import fastf1_service as ff1
+from backend.services.agent_proxy import agent_enabled, proxy_request
 from backend.dependencies import require_auth
 
 # Comprehensive circuit data for all current & recent F1 circuits
@@ -50,28 +51,34 @@ async def get_circuit_info(circuit_id: str, user=Depends(require_auth)):
 
 
 @router.get('/{circuit_id}/history')
-async def get_history(circuit_id: str, user=Depends(require_auth)):
+async def get_history(request: Request, circuit_id: str, user=Depends(require_auth)):
     """Race winner history for a circuit."""
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_circuit_history, circuit_id)
     return data
 
 
 @router.get('/{circuit_id}/topology')
-async def get_topology(circuit_id: str, user=Depends(require_auth)):
+async def get_topology(request: Request, circuit_id: str, user=Depends(require_auth)):
     """2D SVG telemetry coordinates for any historical circuit."""
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_circuit_topology_by_id, circuit_id)
     return data
 
 
 @router.get('/{circuit_id}/heatmap')
-async def get_heatmap(circuit_id: str, year: int = 2024, user=Depends(require_auth)):
+async def get_heatmap(request: Request, circuit_id: str, year: int = 2024, user=Depends(require_auth)):
     """
     Returns per-point telemetry (throttle, brake, speed) matched to track coordinates
     for the fastest qualifying lap at this circuit. Used for D3 heatmap overlay.
     Results are expensive to compute — cache hit is common after first load.
     """
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_circuit_heatmap, circuit_id, year)
     return data

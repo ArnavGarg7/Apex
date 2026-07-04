@@ -32,7 +32,16 @@ class Settings(BaseSettings):
     DISABLE_LIVE_SIGNALR: bool = False
     # Shared secret the local relay must present (header: X-Ingest-Secret)
     # to push frames into POST /api/live/ingest. Ingest is disabled if empty.
+    # Also used to authenticate the historical agent proxy (header X-Agent-Secret).
     LIVE_INGEST_SECRET: str = ''
+
+    # ── Historical Agent Proxy ───────────────────────────────────────────
+    # FastF1 fetches from livetiming.formula1.com, which 403-blocks Cloud Run's
+    # datacenter IP. When this is set (e.g. an HTTPS tunnel to f1_local_agent.py
+    # running on a residential IP), the FastF1-backed historical/circuit routes
+    # are transparently proxied there instead of executed locally. Empty = run
+    # FastF1 in-process (correct for local dev, where the IP isn't blocked).
+    HISTORICAL_UPSTREAM_URL: str = ''
 
     class Config:
         env_file = '.env'

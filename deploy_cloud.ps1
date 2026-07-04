@@ -30,11 +30,16 @@ if (-not $env:LIVE_INGEST_SECRET) {
 }
 $INGEST_SECRET = $env:LIVE_INGEST_SECRET
 
+# Optional: HTTPS tunnel URL of the local historical agent (f1_local_agent.py).
+# When set, FastF1-backed historical/circuit routes are proxied there (Cloud Run's
+# IP is 403-blocked by F1). Set $env:HISTORICAL_UPSTREAM_URL before deploying.
+$AGENT_URL = if ($env:HISTORICAL_UPSTREAM_URL) { $env:HISTORICAL_UPSTREAM_URL } else { "" }
+
 # Cloud Run CLI fails parsing JSON via inline flags. We build a temporary env.yaml
 # DISABLE_LIVE_SIGNALR=true → backend does NOT connect to F1 directly (datacenter IP
 # is 403-blocked); it receives frames from the local relay via POST /api/live/ingest.
 $JSON_CONTENT = (Get-Content $JSON_FILE -Raw).Replace("`r", "")
-$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ") + "`nGEMINI_API_KEY: `"AIzaSyDdACfUG0biuz_4KvaEwrNwcg-hKJQs2Rs`"`nOPENWEATHER_API_KEY: `"20141e6e704c122e5cfc91f3f968ea2f`"`nDISABLE_LIVE_SIGNALR: `"true`"`nLIVE_INGEST_SECRET: `"$INGEST_SECRET`"`n"
+$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ") + "`nGEMINI_API_KEY: `"AIzaSyDdACfUG0biuz_4KvaEwrNwcg-hKJQs2Rs`"`nOPENWEATHER_API_KEY: `"20141e6e704c122e5cfc91f3f968ea2f`"`nDISABLE_LIVE_SIGNALR: `"true`"`nLIVE_INGEST_SECRET: `"$INGEST_SECRET`"`nHISTORICAL_UPSTREAM_URL: `"$AGENT_URL`"`n"
 Set-Content env.yaml $yaml
 
 try {

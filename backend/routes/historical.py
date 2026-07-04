@@ -3,45 +3,56 @@ backend/routes/historical.py
 Historical race data via FastF1.
 """
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Optional
 from backend.services import fastf1_service as ff1
+from backend.services.agent_proxy import agent_enabled, proxy_request
 from backend.dependencies import require_auth
 
 router = APIRouter()
 
 
 @router.get('/laps')
-async def get_laps(year: int, round: int, driver: Optional[str] = None,
+async def get_laps(request: Request, year: int, round: int, driver: Optional[str] = None,
                    user=Depends(require_auth)):
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_race_laps, year, round, driver)
     return data
 
 
 @router.get('/results')
-async def get_results(year: int, round: int, user=Depends(require_auth)):
+async def get_results(request: Request, year: int, round: int, user=Depends(require_auth)):
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_session_results, year, round)
     return data
 
 
 @router.get('/circuit-history/{circuit_id}')
-async def get_circuit_history(circuit_id: str, user=Depends(require_auth)):
+async def get_circuit_history(request: Request, circuit_id: str, user=Depends(require_auth)):
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_circuit_history, circuit_id)
     return data
 
 
 @router.get('/telemetry-compare')
-async def get_telemetry_compare(year: int, round: int, driver1: str, driver2: str, user=Depends(require_auth)):
+async def get_telemetry_compare(request: Request, year: int, round: int, driver1: str, driver2: str, user=Depends(require_auth)):
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_telemetry_comparison, year, round, driver1, driver2)
     return data
 
 
 @router.get('/race-pace')
-async def get_race_pace(year: int, round: int, driver1: str, driver2: str, user=Depends(require_auth)):
+async def get_race_pace(request: Request, year: int, round: int, driver1: str, driver2: str, user=Depends(require_auth)):
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_race_pace_comparison, year, round, driver1, driver2)
     return data
@@ -109,11 +120,13 @@ async def get_constructors(user=Depends(require_auth)):
 
 
 @router.get('/tyre-deg')
-async def get_tyre_deg(year: int, round: int, user=Depends(require_auth)):
+async def get_tyre_deg(request: Request, year: int, round: int, user=Depends(require_auth)):
     """
     FP2 long-run tyre degradation analysis. Returns per-compound deg rate (s/lap)
     and a 1-stop vs 2-stop prediction for the race weekend.
     """
+    if agent_enabled():
+        return await proxy_request(request)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(None, ff1.get_fp2_degradation, year, round)
     return data
