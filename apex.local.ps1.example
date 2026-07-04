@@ -1,0 +1,20 @@
+# apex.local.ps1.example
+# ----------------------------------------------------------------------------
+# Copy this file to  apex.local.ps1  (that copy is gitignored) and fill in your
+# values. start_apex.ps1 loads it automatically. Set once, reuse every race day.
+# ----------------------------------------------------------------------------
+
+# REQUIRED - the SAME secret you set as LIVE_INGEST_SECRET on the Cloud Run backend.
+$env:LIVE_INGEST_SECRET = "PUT-YOUR-LONG-RANDOM-SECRET-HERE"
+
+# Backend URL the live relay pushes frames to (default is correct).
+$env:APEX_BACKEND_URL = "https://apex-backend-uqtw7bvyla-uc.a.run.app"
+
+# Local port the historical agent listens on.
+$env:AGENT_PORT = "8100"
+
+# OPTIONAL - named cloudflared tunnel (see APEX_LOCAL_SETUP.md).
+# A named tunnel gives a PERMANENT https URL, so you set HISTORICAL_UPSTREAM_URL on
+# the backend ONCE and never redeploy again. Leave commented out to fall back to a
+# quick ephemeral tunnel (URL changes each run -> requires a redeploy each time).
+# $env:APEX_TUNNEL_NAME = "apex-agent"

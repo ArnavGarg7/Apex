@@ -24,6 +24,7 @@ data/
 
 # Environment / Credentials (CRITICAL)
 .env
+apex.local.ps1
 *.json
 !package.json
 !tsconfig.json
