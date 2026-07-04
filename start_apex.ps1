@@ -52,15 +52,32 @@ function Start-Win([string]$title, [string]$cmd) {
 Write-Host "APEX launcher (mode: $Mode)" -ForegroundColor Cyan
 Write-Host "  backend: $env:APEX_BACKEND_URL" -ForegroundColor DarkGray
 
+# Resolve cloudflared even if it isn't on PATH (winget installs to a non-PATH dir)
+function Resolve-Cloudflared {
+    $c = (Get-Command cloudflared -ErrorAction SilentlyContinue).Source
+    if ($c) { return $c }
+    foreach ($cand in @(
+        "$env:ProgramFiles\cloudflared\cloudflared.exe",
+        "${env:ProgramFiles(x86)}\cloudflared\cloudflared.exe",
+        "$env:LOCALAPPDATA\Microsoft\WinGet\Links\cloudflared.exe"
+    )) { if (Test-Path $cand) { return $cand } }
+    return $null
+}
+
 # Historical agent + tunnel
 if ($Mode -eq 'All' -or $Mode -eq 'Hist') {
     Start-Win 'APEX Historical Agent' 'python f1_local_agent.py'
     Start-Sleep -Seconds 2
-    if ($env:APEX_TUNNEL_NAME) {
-        Start-Win "APEX Tunnel [$env:APEX_TUNNEL_NAME]" "cloudflared tunnel run $env:APEX_TUNNEL_NAME"
+
+    $cf = Resolve-Cloudflared
+    if (-not $cf) {
+        Write-Host "  cloudflared not found - tunnel NOT started. Install it, then re-run." -ForegroundColor Red
+        Write-Host "    winget install --id Cloudflare.cloudflared" -ForegroundColor DarkGray
+    } elseif ($env:APEX_TUNNEL_NAME) {
+        Start-Win "APEX Tunnel [$env:APEX_TUNNEL_NAME]" ('& "' + $cf + '" tunnel run ' + $env:APEX_TUNNEL_NAME)
     } else {
         Write-Host "  no APEX_TUNNEL_NAME set -> quick tunnel (URL changes each run; needs a redeploy)" -ForegroundColor Yellow
-        Start-Win 'APEX Tunnel [quick]' "cloudflared tunnel --url http://localhost:$port"
+        Start-Win 'APEX Tunnel [quick]' ('& "' + $cf + '" tunnel --url http://localhost:' + $port)
     }
 }
 
