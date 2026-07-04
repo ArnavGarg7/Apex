@@ -179,9 +179,9 @@ export default function HeadToHead() {
   const token = useUserStore((s) => s.idToken);
 
   const { data: calendar } = useRaceData(`/api/calendar/${year}`, { immediate: true, deps: [year] });
-  const { data: results, refetch: fetchResults } = useRaceData(`/api/historical/results?year=${year}&round=${round}`);
-
-  useEffect(() => { fetchResults(); }, [year, round]);
+  // immediate:true so the fetch re-runs once idToken is available (fixes empty
+  // driver dropdowns when the token lands after mount) and on year/round change.
+  const { data: results } = useRaceData(`/api/historical/results?year=${year}&round=${round}`, { immediate: true, deps: [year, round] });
 
   useEffect(() => {
     if (results?.length >= 2 && !driver1) {

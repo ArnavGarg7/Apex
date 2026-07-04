@@ -30,6 +30,46 @@ def _get_cache():
     return cache
 
 
+# ─── Live Ingest (local relay → cache) ────────────────────────────────────────
+
+@router.post('/ingest')
+async def ingest_live_data(request: Request):
+    """
+    Webhook for the local F1 relay (f1_local_relay.py).
+
+    Cloud Run's datacenter IP is 403-blocked by F1's live-timing stream, so a
+    relay running on an unblocked residential IP connects to F1 and forwards
+    raw frames here. Authenticated with a shared secret (header X-Ingest-Secret),
+    NOT Firebase — this is a machine-to-machine push.
+
+    Body shapes:
+      {"type": "snapshot", "result": { <category>: <data>, ... }}   # initial dump
+      {"type": "feed",     "args":   <raw feed message> }           # incremental
+    """
+    from backend.config import get_settings
+    secret = get_settings().LIVE_INGEST_SECRET
+    if not secret:
+        raise HTTPException(status_code=503, detail='Ingest not configured')
+    if request.headers.get('X-Ingest-Secret', '') != secret:
+        raise HTTPException(status_code=403, detail='Invalid ingest secret')
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail='Invalid JSON body')
+
+    from backend.services.signalr_service import service
+    msg_type = body.get('type')
+    if msg_type == 'snapshot':
+        service.ingest_snapshot(body.get('result', {}))
+    elif msg_type == 'feed':
+        service.ingest_feed(body.get('args'))
+    else:
+        raise HTTPException(status_code=400, detail=f'Unknown ingest type: {msg_type}')
+
+    return {'status': 'ok'}
+
+
 # ─── Session ─────────────────────────────────────────────────────────────────
 
 @router.get('/session')

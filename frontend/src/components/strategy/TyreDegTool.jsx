@@ -57,8 +57,15 @@ export default function TyreDegTool() {
           <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.55rem', color: '#444', letterSpacing: '0.15em' }}>ANALYZING STINTS...</span>
         </div>
       ) : error || !data?.degradation_s_per_lap || Object.keys(data.degradation_s_per_lap).length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '24px 0', fontFamily: 'Orbitron, monospace', fontSize: '0.6rem', color: '#444' }}>
-          NO LONG-RUN DATA FOR {currentEvent?.event_name?.toUpperCase() || `ROUND ${round}`}
+        <div style={{ textAlign: 'center', padding: '24px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '0.6rem', color: '#444' }}>
+            NO LONG-RUN DATA FOR {currentEvent?.event_name?.toUpperCase() || `ROUND ${round}`}
+          </div>
+          {(error || data?.note) && (
+            <div style={{ fontFamily: 'Titillium Web', fontSize: '0.55rem', color: '#555' }}>
+              {error ? `Fetch error: ${error}` : data.note}
+            </div>
+          )}
         </div>
       ) : (
         <>

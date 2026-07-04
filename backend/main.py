@@ -28,15 +28,22 @@ async def lifespan(app: FastAPI):
         logger.warning(f"ML preload skipped: {e}")
 
     # ── F1 SignalR live timing service ───────────────────────────────────
+    # In production, Cloud Run's datacenter IP is 403-blocked by F1, so we do
+    # NOT connect directly. Instead a local relay (f1_local_relay.py) running
+    # on a residential IP pushes frames to POST /api/live/ingest. Toggle with
+    # DISABLE_LIVE_SIGNALR. Either way the cache still needs the event loop
+    # reference so ingested frames can be broadcast to SSE clients.
     try:
+        from backend.config import get_settings
         from backend.services.signalr_service import cache, service
-        # Give the cache a reference to the running asyncio loop so the
-        # SignalR thread can push SSE updates onto it.
         cache.set_event_loop(asyncio.get_running_loop())
-        service.start()
-        logger.info("F1 SignalR timing service started.")
+        if get_settings().DISABLE_LIVE_SIGNALR:
+            logger.info("Direct F1 SignalR disabled — running in relay-ingest mode.")
+        else:
+            service.start()
+            logger.info("F1 SignalR timing service started.")
     except Exception as e:
-        logger.warning(f"SignalR service start skipped: {e}")
+        logger.warning(f"SignalR service setup skipped: {e}")
 
     yield
 

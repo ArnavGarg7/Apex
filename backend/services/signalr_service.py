@@ -44,9 +44,15 @@ def _deep_merge(base: dict, update: Any) -> dict:
 class LiveTimingCache:
     """Thread-safe in-memory store for live F1 timing state.
 
-    Populated by F1SignalRService from the official SignalR stream.
+    Populated by F1SignalRService from the official SignalR stream,
+    OR pushed in via POST /api/live/ingest from a local relay.
     Read by REST endpoints and the SSE broadcast loop.
     """
+
+    # Cache is considered stale (not "populated") once no frame has arrived
+    # for this many seconds — prevents a dead session's board from shadowing
+    # the fallback forever between race weekends.
+    _STALE_AFTER = 300  # seconds
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -59,15 +65,37 @@ class LiveTimingCache:
         # Set of asyncio.Queue objects for SSE clients
         self._sse_queues: set = set()
         self._lap_history: Dict[str, list] = {}  # driver_code -> list of {lap, position}
+        # Session identity — used to auto-wipe stale state when a NEW session begins
+        self._session_key: Any = None
 
     # ── Write ──────────────────────────────────────────────────────────────
 
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):
         self._loop = loop
 
+    def _reset_state_locked(self):
+        """Wipe live state (caller must hold self._lock). Keeps SSE queues + loop."""
+        self._state.clear()
+        self._lap_history.clear()
+        self._is_live = False
+        self._last_update = None
+
     def update(self, category: str, data: Any):
         """Deep-merge a SignalR message into the in-memory state."""
         with self._lock:
+            # ── New-session detection ──────────────────────────────────────
+            # If SessionInfo carries a different Key than what we're holding,
+            # a new session has begun — wipe the previous race's stale state
+            # (ghost drivers, old gaps/tyres) BEFORE merging the new frame.
+            if category == 'SessionInfo' and isinstance(data, dict):
+                new_key = data.get('Key')
+                if new_key is not None and self._session_key is not None \
+                        and new_key != self._session_key:
+                    logger.info(f'New session detected ({self._session_key} → {new_key}); clearing stale live cache')
+                    self._reset_state_locked()
+                if new_key is not None:
+                    self._session_key = new_key
+
             if category not in self._state:
                 self._state[category] = {}
 
@@ -151,9 +179,15 @@ class LiveTimingCache:
 
     @property
     def is_populated(self) -> bool:
-        """True once any data has been received from the stream."""
+        """True only if we hold state AND it was updated recently.
+
+        The freshness guard stops a finished/abandoned session's board from
+        shadowing the REST fallback indefinitely between race weekends.
+        """
         with self._lock:
-            return bool(self._state)
+            if not self._state or self._last_update is None:
+                return False
+            return (time.time() - self._last_update) < self._STALE_AFTER
 
     @property
     def last_update(self) -> Optional[float]:
@@ -162,9 +196,8 @@ class LiveTimingCache:
 
     def clear(self):
         with self._lock:
-            self._state.clear()
-            self._is_live = False
-            self._last_update = None
+            self._reset_state_locked()
+            self._session_key = None
 
 
 # ─── SignalR Service ──────────────────────────────────────────────────────────
@@ -331,6 +364,24 @@ class F1SignalRService:
             self._dispatch(msg)
         except Exception as e:
             logger.debug(f'Feed dispatch error: {e}')
+
+    # ── External Ingestion (local relay → POST /api/live/ingest) ──────────
+
+    def ingest_feed(self, msg):
+        """Ingest a raw 'feed' message forwarded by the local relay.
+
+        Uses the exact same dispatch/parse path as a live SignalR connection,
+        so relayed frames are indistinguishable from directly-streamed ones.
+        """
+        self._t_last_message = time.time()
+        self._dispatch(msg)
+
+    def ingest_snapshot(self, result: dict):
+        """Ingest a full initial-state dump forwarded by the local relay."""
+        self._t_last_message = time.time()
+        if isinstance(result, dict):
+            for category, data in result.items():
+                self._process_entry(category, data, already_parsed=True)
 
     # ── Message Parsing ───────────────────────────────────────────────────
 

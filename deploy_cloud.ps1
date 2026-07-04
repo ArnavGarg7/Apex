@@ -23,9 +23,18 @@ try {
 }
 
 Write-Host "--- 3. Deploying to Cloud Run ---" -ForegroundColor Cyan
+# Live ingest secret for the local relay. Set $env:LIVE_INGEST_SECRET before running,
+# otherwise deployment aborts (never ship a placeholder secret to production).
+if (-not $env:LIVE_INGEST_SECRET) {
+    Write-Error "LIVE_INGEST_SECRET env var is not set. Run: `$env:LIVE_INGEST_SECRET = '<a-long-random-secret>' before deploying."
+}
+$INGEST_SECRET = $env:LIVE_INGEST_SECRET
+
 # Cloud Run CLI fails parsing JSON via inline flags. We build a temporary env.yaml
+# DISABLE_LIVE_SIGNALR=true → backend does NOT connect to F1 directly (datacenter IP
+# is 403-blocked); it receives frames from the local relay via POST /api/live/ingest.
 $JSON_CONTENT = (Get-Content $JSON_FILE -Raw).Replace("`r", "")
-$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ") + "`nGEMINI_API_KEY: `"AIzaSyDdACfUG0biuz_4KvaEwrNwcg-hKJQs2Rs`"`nOPENWEATHER_API_KEY: `"20141e6e704c122e5cfc91f3f968ea2f`"`n"
+$yaml = "APP_ENV: production`nFIREBASE_CREDENTIALS_JSON: |`n  " + $JSON_CONTENT.Replace("`n", "`n  ") + "`nGEMINI_API_KEY: `"AIzaSyDdACfUG0biuz_4KvaEwrNwcg-hKJQs2Rs`"`nOPENWEATHER_API_KEY: `"20141e6e704c122e5cfc91f3f968ea2f`"`nDISABLE_LIVE_SIGNALR: `"true`"`nLIVE_INGEST_SECRET: `"$INGEST_SECRET`"`n"
 Set-Content env.yaml $yaml
 
 try {
