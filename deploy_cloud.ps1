@@ -51,6 +51,7 @@ try {
       --memory 2Gi `
       --cpu 1 `
       --min-instances 0 `
+      --max-instances 1 `
       --timeout 300 `
       --env-vars-file env.yaml
 } finally {
