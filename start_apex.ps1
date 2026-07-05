@@ -74,10 +74,11 @@ if ($Mode -eq 'All' -or $Mode -eq 'Hist') {
         Write-Host "  cloudflared not found - tunnel NOT started. Install it, then re-run." -ForegroundColor Red
         Write-Host "    winget install --id Cloudflare.cloudflared" -ForegroundColor DarkGray
     } elseif ($env:APEX_TUNNEL_NAME) {
-        Start-Win "APEX Tunnel [$env:APEX_TUNNEL_NAME]" ('& "' + $cf + '" tunnel run ' + $env:APEX_TUNNEL_NAME)
+        # single-quote the exe path so spaces/() survive the Start-Process hand-off
+        Start-Win "APEX Tunnel [$env:APEX_TUNNEL_NAME]" ("& '" + $cf + "' tunnel run " + $env:APEX_TUNNEL_NAME)
     } else {
         Write-Host "  no APEX_TUNNEL_NAME set -> quick tunnel (URL changes each run; needs a redeploy)" -ForegroundColor Yellow
-        Start-Win 'APEX Tunnel [quick]' ('& "' + $cf + '" tunnel --url http://localhost:' + $port)
+        Start-Win 'APEX Tunnel [quick]' ("& '" + $cf + "' tunnel --url http://localhost:" + $port)
     }
 }
 

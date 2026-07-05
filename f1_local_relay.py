@@ -80,7 +80,9 @@ def _post_worker():
         if payload is None:
             break
         try:
-            r = session.post(INGEST_URL, json=payload, timeout=10)
+            # (connect, read) — generous read timeout so the FIRST post can survive
+            # a scale-to-zero cold start of the backend (~15s) instead of dropping it.
+            r = session.post(INGEST_URL, json=payload, timeout=(10, 45))
             if r.status_code == 403:
                 logger.error('Backend rejected ingest (403) — check LIVE_INGEST_SECRET matches.')
             elif r.status_code == 503:
@@ -182,6 +184,16 @@ def main():
         return
 
     logger.info(f'APEX relay → {INGEST_URL}')
+
+    # Proactively wake the backend (it scales to zero when idle, ~15s cold start)
+    # so the first frames aren't lost to a cold start.
+    try:
+        logger.info('Warming up backend (may take ~15s on a cold start)...')
+        requests.get(f'{BACKEND_URL}/api/health', timeout=60)
+        logger.info('Backend is awake.')
+    except Exception as e:
+        logger.warning(f'Warm-up ping failed (continuing anyway): {e}')
+
     threading.Thread(target=_post_worker, daemon=True, name='post-worker').start()
 
     retry = 5
