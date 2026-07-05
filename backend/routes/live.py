@@ -59,11 +59,15 @@ async def ingest_live_data(request: Request):
         raise HTTPException(status_code=400, detail='Invalid JSON body')
 
     from backend.services.signalr_service import service
+    # Process frames OFF the event loop. With a single worker, doing the
+    # synchronous parse/merge inline would block every other request (live
+    # timing SSE, monte-carlo, radio) while a live session floods frames.
+    loop = asyncio.get_event_loop()
     msg_type = body.get('type')
     if msg_type == 'snapshot':
-        service.ingest_snapshot(body.get('result', {}))
+        await loop.run_in_executor(None, service.ingest_snapshot, body.get('result', {}))
     elif msg_type == 'feed':
-        service.ingest_feed(body.get('args'))
+        await loop.run_in_executor(None, service.ingest_feed, body.get('args'))
     else:
         raise HTTPException(status_code=400, detail=f'Unknown ingest type: {msg_type}')
 

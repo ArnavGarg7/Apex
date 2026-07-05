@@ -104,7 +104,7 @@ def _post_worker():
         # 'snapshot' payloads are sent on their own. This is what stops the
         # per-frame POST flood during a live session.
         batch = [item]
-        while len(batch) < 2000:
+        while len(batch) < 400:   # bound per-POST work so the backend stays responsive
             try:
                 batch.append(_post_q.get_nowait())
             except queue.Empty:

@@ -570,6 +570,10 @@ def build_race_control_response(c: LiveTimingCache) -> list:
         messages = raw
     else:
         return []
+    # F1 SignalR sends Messages as a dict keyed by index ({"0": {...}, "1": {...}})
+    # in snapshots/updates, not a list — take the values so they aren't skipped.
+    if isinstance(messages, dict):
+        messages = list(messages.values())
     normalized = []
     for m in messages:
         if not isinstance(m, dict):

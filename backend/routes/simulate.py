@@ -3,7 +3,7 @@ backend/routes/simulate.py
 API endpoints for Championship Probability Monte Carlo simulations.
 """
 import asyncio
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from backend.services.simulation_service import simulate_championship
 from backend.dependencies import require_auth
 
