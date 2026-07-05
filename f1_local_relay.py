@@ -52,8 +52,12 @@ INGEST_SECRET = os.environ.get('LIVE_INGEST_SECRET', '')
 WS_URL = 'wss://livetiming.formula1.com/signalrcore'
 NEGOTIATE_URL = 'https://livetiming.formula1.com/signalrcore/negotiate'
 
+# NOTE: CarData.z and Position.z (per-car telemetry/GPS at high frequency) are
+# intentionally OMITTED — they are the bulk of the stream volume and are NOT
+# needed for the live timing board / radio. Dropping them keeps the relay from
+# flooding. Re-add them only if you specifically need live car telemetry.
 TOPICS = [
-    'Heartbeat', 'CarData.z', 'Position.z', 'ExtrapolatedClock',
+    'Heartbeat', 'ExtrapolatedClock',
     'TopThree', 'TimingStats', 'TimingAppData', 'WeatherData',
     'TrackStatus', 'DriverList', 'RaceControlMessages', 'SessionInfo',
     'SessionData', 'LapCount', 'TimingData', 'SessionStatus',
@@ -66,7 +70,22 @@ BROWSER_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
 
 # ─── Async POST worker (keeps the WS callback non-blocking) ───────────────────
 
-_post_q: "queue.Queue" = queue.Queue(maxsize=2000)
+_post_q: "queue.Queue" = queue.Queue(maxsize=20000)
+
+
+def _do_post(session, payload):
+    try:
+        # (connect, read) — generous read timeout so the FIRST post can survive
+        # a scale-to-zero cold start of the backend (~15s) instead of dropping it.
+        r = session.post(INGEST_URL, json=payload, timeout=(10, 45))
+        if r.status_code == 403:
+            logger.error('Backend rejected ingest (403) - check LIVE_INGEST_SECRET matches.')
+        elif r.status_code == 503:
+            logger.error('Backend ingest not configured (503) - set LIVE_INGEST_SECRET on the backend.')
+        elif r.status_code >= 400:
+            logger.warning(f'Ingest HTTP {r.status_code}: {r.text[:120]}')
+    except Exception as e:
+        logger.warning(f'Ingest POST failed: {e}')
 
 
 def _post_worker():
@@ -76,23 +95,41 @@ def _post_worker():
         'X-Ingest-Secret': INGEST_SECRET,
     })
     while True:
-        payload = _post_q.get()
-        if payload is None:
+        item = _post_q.get()
+        if item is None:
             break
-        try:
-            # (connect, read) — generous read timeout so the FIRST post can survive
-            # a scale-to-zero cold start of the backend (~15s) instead of dropping it.
-            r = session.post(INGEST_URL, json=payload, timeout=(10, 45))
-            if r.status_code == 403:
-                logger.error('Backend rejected ingest (403) — check LIVE_INGEST_SECRET matches.')
-            elif r.status_code == 503:
-                logger.error('Backend ingest not configured (503) — set LIVE_INGEST_SECRET on the backend.')
-            elif r.status_code >= 400:
-                logger.warning(f'Ingest HTTP {r.status_code}: {r.text[:120]}')
-        except Exception as e:
-            logger.warning(f'Ingest POST failed: {e}')
-        finally:
+        # Coalesce this item plus everything else already waiting into as few
+        # POSTs as possible. Consecutive 'feed' frames are batched into ONE
+        # request — the backend's dispatcher iterates a list of frames — while
+        # 'snapshot' payloads are sent on their own. This is what stops the
+        # per-frame POST flood during a live session.
+        batch = [item]
+        while len(batch) < 2000:
+            try:
+                batch.append(_post_q.get_nowait())
+            except queue.Empty:
+                break
+
+        stop = False
+        feed_args = []
+        for p in batch:
+            if p is None:
+                stop = True
+                continue
+            if p.get('type') == 'snapshot':
+                if feed_args:
+                    _do_post(session, {'type': 'feed', 'args': feed_args})
+                    feed_args = []
+                _do_post(session, p)
+            else:
+                feed_args.append(p.get('args'))
+        if feed_args:
+            _do_post(session, {'type': 'feed', 'args': feed_args})
+
+        for _ in batch:
             _post_q.task_done()
+        if stop:
+            break
 
 
 def _enqueue(payload: dict):
